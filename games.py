@@ -166,7 +166,7 @@ def props_by_game():
 
 
 # ----------------------------------------------------------------------------- charts
-def bar_svg(labels, values, color="#2e7d4f", width=560, fmt="{:.0f}"):
+def bar_svg(labels, values, color="#17B37A", width=560, fmt="{:.0f}"):
     if not labels:
         return ""
     h, pad, bw = 22, 4, 300
@@ -176,9 +176,9 @@ def bar_svg(labels, values, color="#2e7d4f", width=560, fmt="{:.0f}"):
         y = i * (h + pad)
         w = bw * abs(v) / vmax
         x = 180 if v >= 0 else 180 - w
-        rows.append(f'<text x="172" y="{y + 15}" text-anchor="end" font-size="12" fill="#6e6a5e">{l}</text>'
-                    f'<rect x="{x}" y="{y}" width="{w:.1f}" height="{h}" rx="3" fill="{color if v >= 0 else "#c8372d"}"/>'
-                    f'<text x="{180 + bw + 6}" y="{y + 15}" font-size="12" fill="#1c1b17">{fmt.format(v)}</text>')
+        rows.append(f'<text x="172" y="{y + 15}" text-anchor="end" font-size="12" fill="#5B6B7E">{l}</text>'
+                    f'<rect x="{x}" y="{y}" width="{w:.1f}" height="{h}" rx="3" fill="{color if v >= 0 else "#E5533D"}"/>'
+                    f'<text x="{180 + bw + 6}" y="{y + 15}" font-size="12" fill="#0B1420">{fmt.format(v)}</text>')
     H = len(labels) * (h + pad)
     return f'<svg viewBox="0 0 {width} {H}" width="100%" role="img">{"".join(rows)}</svg>'
 
@@ -194,7 +194,7 @@ def charts_html():
         blocks.append("<h3>Plays with an edge, by market</h3>" +
                       bar_svg([m.replace("player_", "").replace("_", " ") for m in by_mkt.index], by_mkt.values.tolist()))
         sides = good.groupby("side").size()
-        blocks.append("<h3>Overs vs unders among the plays</h3>" + bar_svg(sides.index.tolist(), sides.values.tolist(), "#b9922f"))
+        blocks.append("<h3>Overs vs unders among the plays</h3>" + bar_svg(sides.index.tolist(), sides.values.tolist(), "#3DDC97"))
     if os.path.exists("graded.csv"):
         g = pd.read_csv("graded.csv")
         wk = g.groupby("week").units.sum().cumsum()
@@ -205,20 +205,20 @@ def charts_html():
 
 # ----------------------------------------------------------------------------- page
 CSS = """
-:root{--felt:#1b3f32;--paper:#f6f1e4;--paper-edge:#e7dfc9;--ink:#1c1b17;--ink-soft:#6e6a5e;--chip:#c8372d;--gold:#b9922f;--ok:#2e7d4f;
---display:"Oswald","Arial Narrow",Impact,sans-serif;--body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+:root{--felt:#101823;--felt-2:#182230;--paper:#FFFFFF;--paper-edge:#E3E9F0;--ink:#0B1420;--ink-soft:#5B6B7E;--chip:#E5533D;--gold:#3DDC97;--ok:#17B37A;--mint:#2A3647;--panel:#F3F6F9;
+--display:"Sora","Segoe UI",system-ui,sans-serif;--body:"Manrope","Segoe UI",system-ui,sans-serif;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 *,*::before,*::after{box-sizing:inherit}
 body{margin:0;background:var(--felt);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.35}
 header,main,nav{max-width:640px;margin:0 auto}
-header{color:var(--paper);padding:20px 16px 6px}
+header{color:#F2F5F8;padding:20px 16px 6px}
 header h1{font:600 34px var(--display);margin:0;line-height:1}
-header p{margin:6px 0 0;color:#c9d6cd;font-size:15px}
+header p{margin:6px 0 0;color:#93A1B3;font-size:14px}
 nav{padding:8px 16px 14px;display:flex;gap:8px}
-nav a{color:var(--paper);text-decoration:none;border:1.5px solid #8fb0a0;border-radius:999px;padding:8px 14px;font-weight:600;font-size:15px}
-nav a.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}
-main{padding:0 12px 40px}
-.card{background:var(--paper);border-radius:6px;margin:0 0 14px;padding:14px 16px;box-shadow:0 2px 0 var(--paper-edge)}
+nav a{color:#F2F5F8;text-decoration:none;border:1px solid var(--mint);background:var(--felt-2);border-radius:10px;padding:8px 12px;font-weight:700;font-size:13px}
+nav a.on{background:#F2F5F8;color:var(--ink);border-color:#F2F5F8}
+main{padding:0 12px 110px}
+.card{background:var(--paper);border-radius:14px;margin:0 0 12px;padding:14px 16px;box-shadow:0 1px 0 rgba(0,0,0,.25)}
 .gh{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .gh h2{font:600 22px var(--display);margin:0}
 .gh small{color:var(--ink-soft);font-size:14px;white-space:nowrap}
@@ -228,19 +228,22 @@ main{padding:0 12px 40px}
 .up{color:var(--ok)}.dn{color:var(--chip)}
 .split{margin-top:10px}
 .split .t{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);margin-bottom:3px}
-.bar{display:flex;height:18px;border-radius:4px;overflow:hidden;background:#ebe4d2;margin-bottom:4px}
+.bar{display:flex;height:18px;border-radius:5px;overflow:hidden;background:var(--panel);margin-bottom:4px}
 .bar span{display:flex;align-items:center;justify-content:center;font:600 12px var(--body);color:#fff;min-width:0;overflow:hidden}
-.bar .a{background:#5b7f9b}.bar .h{background:#8c6a3f}
-.bar.money .a{background:#3f6584}.bar.money .h{background:#6f4f2a}
-.trap{margin-top:10px;padding:8px 10px;border-radius:5px;background:#f1dcd8;color:#8a2a22;font-size:14px}
+.bar .a{background:#5B7FD6}.bar .h{background:#E08B4F}
+.bar.money .a{background:#3C5BB3}.bar.money .h{background:#C56B2D}
+.trap{margin-top:10px;padding:8px 10px;border-radius:8px;background:#FCE6E1;color:#9E2F1F;font-size:14px}
 .trap b{font-family:var(--display);font-size:16px;margin-right:6px}
 .calm{margin-top:10px;font-size:13px;color:var(--ink-soft)}
-.props{margin-top:10px;font-size:14px;color:var(--ink);border-top:1px dashed #cfc6ad;padding-top:8px}
+.props{margin-top:10px;font-size:14px;color:var(--ink);border-top:1px solid #E3E9F0;padding-top:8px}
 .props div{padding:2px 0}
-.chart{background:var(--paper);border-radius:6px;padding:12px 16px 6px;margin-bottom:14px}
+.chart{background:var(--paper);border-radius:14px;padding:12px 16px 6px;margin-bottom:12px}
 .chart h3{font:600 17px var(--display);margin:0 0 8px}
-.empty{background:var(--paper);border-radius:6px;padding:20px 18px}
-footer{color:#a7bbb0;font-size:13px;text-align:center;padding:0 20px 30px;max-width:640px;margin:0 auto}
+.empty{background:var(--paper);border-radius:14px;padding:20px 18px}
+footer{color:#93A1B3;font-size:13px;text-align:center;padding:0 20px 110px;max-width:640px;margin:0 auto}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:12;background:#0B1420;border-top:1px solid var(--mint);display:grid;grid-template-columns:repeat(3,1fr);padding:8px 8px calc(env(safe-area-inset-bottom,0px) + 10px)}
+.tabs a{display:flex;flex-direction:column;align-items:center;gap:3px;color:#93A1B3;text-decoration:none;font:700 11px var(--body);border:0;background:transparent;padding:0;border-radius:0}
+.tabs a.on{color:var(--gold)}
 """
 
 
@@ -301,13 +304,14 @@ def build():
             "lines and movement only. The feed is unofficial and sometimes down; try again later or drop a splits.csv in the repo.</div>")
     html = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Games</title>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>{CSS}</style></head><body>
 <header><h1>Games this week</h1><p>Lines, how they moved, and where the public's money is. Updated {datetime.now():%a %b %d, %I:%M %p} UTC.</p></header>
 <nav><a href="index.html">Board</a><a href="parlay.html">Parlay</a><a class="on" href="games.html">Games</a></nav>
 <main>{note}{"".join(cards) if cards else '<div class="empty">No games loaded yet. The Saturday run fills this in.</div>'}
-<h2 style="color:var(--paper);font:600 24px var(--display);margin:18px 0 10px">Charts</h2>{charts_html()}</main>
+<h2 style="color:#F2F5F8;font:600 22px var(--display);margin:18px 0 10px">Charts</h2>{charts_html()}</main>
 <footer>How to read a trap: when 70%+ of tickets are on one side but the line moves the other way, or the money share is much bigger than the ticket share, the sportsbook is happy to take the public's side. That is a reason to pause, not an automatic fade.</footer>
+<nav class="tabs" aria-label="Sections"><a href="index.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V9M10 19V5M16 19v-8M22 19H2"/></svg>Board</a><a href="parlay.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Parlay</a><a href="games.html" class="on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="6"/><path d="M6 12h12M12 6v12"/></svg>Games</a></nav>
 </body></html>"""
     os.makedirs("docs", exist_ok=True)
     with open("docs/games.html", "w", encoding="utf-8") as f:
