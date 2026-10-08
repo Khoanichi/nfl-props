@@ -34,7 +34,9 @@ header p{margin:4px 0 0;color:#c9d6cd;font-size:14px}
 .fbtn{border:1.5px solid var(--mint);background:transparent;color:var(--paper);border-radius:10px;min-height:44px;padding:0 14px;font:600 15px var(--body);display:flex;align-items:center;gap:8px}
 .fbtn .n{background:var(--gold);color:var(--ink);border-radius:999px;min-width:22px;height:22px;display:none;align-items:center;justify-content:center;font-size:13px}
 .fbtn.has .n{display:flex}
-.seg{grid-column:1 / -1;display:flex;border:1.5px solid var(--mint);border-radius:10px;overflow:hidden}
+.sortrow{grid-column:1 / -1;display:flex;gap:8px}
+.seg{flex:1;display:flex;border:1.5px solid var(--mint);border-radius:10px;overflow:hidden}
+.dir{border:1.5px solid var(--mint);background:transparent;color:var(--paper);border-radius:10px;padding:0 12px;font:600 13px var(--body);min-height:38px;white-space:nowrap}
 .seg button{flex:1;border:0;background:transparent;color:var(--paper);min-height:38px;font:600 14px var(--body)}
 .seg button[aria-pressed=true]{background:var(--paper);color:var(--ink)}
 .active{max-width:640px;margin:0 auto;padding:8px 16px 0;display:flex;gap:6px;flex-wrap:wrap}
@@ -111,7 +113,7 @@ input[type=range]{width:100%;accent-color:var(--ok);height:34px}
 </head>
 <body>
 <header>
-  <div><h1>Week 5 board</h1><p id="count">Updated Thu Oct 08, 05:39 AM.</p></div>
+  <div><h1>Week 5 board</h1><p id="count">Updated Thu Oct 08, 05:54 AM.</p></div>
   <nav class="pages"><a class="on" href="index.html">Board</a><a href="games.html">Games</a></nav>
 </header>
 <div class="bar"><div class="bar-in">
@@ -121,8 +123,11 @@ input[type=range]{width:100%;accent-color:var(--ok);height:34px}
     <button id="clearq" aria-label="Clear search">&times;</button>
   </label>
   <button class="fbtn" id="openf" aria-haspopup="dialog">Filters <span class="n" id="fcount">0</span></button>
-  <div class="seg" id="sort" role="group" aria-label="Sort">
-    <button data-s="ev" aria-pressed="true">Best edge</button><button data-s="model">Model %</button><button data-s="kick">Kickoff</button>
+  <div class="sortrow">
+    <div class="seg" id="sort" role="group" aria-label="Sort by">
+      <button data-s="ev" aria-pressed="true">Edge</button><button data-s="model">Model %</button><button data-s="odds">Odds</button><button data-s="kick">Kickoff</button>
+    </div>
+    <button class="dir" id="dir" aria-label="Sort direction">High to low</button>
   </div>
 </div></div>
 <div class="active" id="active"></div>
@@ -139,7 +144,7 @@ input[type=range]{width:100%;accent-color:var(--ok);height:34px}
   <div class="sb">
     <div class="sec" style="border-top:0"><h3>Type</h3><div class="seg2" id="ftype"><button data-v="all" aria-pressed="true">Everything</button><button data-v="player">Player props</button><button data-v="game">Game lines</button></div></div>
     <div class="sec"><h3>Market</h3><div class="chips" id="fmkt"></div></div>
-    <div class="sec"><h3>Side</h3><div class="seg2" id="fside"><button data-v="all" aria-pressed="true">Any</button><button data-v="Over">Over</button><button data-v="Under">Under</button></div></div>
+    <div class="sec"><h3>Side (pick one or both)</h3><div class="chips" id="fside"></div></div>
     <div class="sec"><h3>Model win % at least <span id="vmodel">any</span></h3><input type="range" id="fmodel" min="0" max="80" step="5" value="0"><div class="ticks"><span>any</span><span>40</span><span>60</span><span>80%</span></div></div>
     <div class="sec"><h3>Edge at least <span id="vev">+3%</span></h3><input type="range" id="fev" min="-10" max="15" step="1" value="3"><div class="ticks"><span>-10%</span><span>0</span><span>+5</span><span>+15%</span></div></div>
     <div class="sec"><h3>Odds no longer than <span id="vprice">+300</span></h3><input type="range" id="fprice" min="-300" max="300" step="25" value="300"><div class="ticks"><span>-300</span><span>-100</span><span>+100</span><span>+300</span></div></div>
@@ -158,7 +163,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const when = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleString([], {weekday:"short", hour:"numeric", minute:"2-digit"}); };
 const amer = o => { const n = parseInt(o, 10); return isNaN(n) ? 0 : n; };
-const DEF = {q:"", type:"all", mkts:[], side:"all", model:0, ev:3, price:300, books:[], games:[], gap:false, hit:false, sort:"ev"};
+const DEF = {q:"", type:"all", mkts:[], sides:[], model:0, ev:3, price:300, books:[], games:[], gap:false, hit:false, sort:"ev", dir:"desc"};
 let F = Object.assign({}, DEF);
 try { Object.assign(F, JSON.parse(localStorage.getItem("boardFilters") || "{}")); } catch(e) {}
 const save = () => { try { localStorage.setItem("boardFilters", JSON.stringify(F)); } catch(e) {} };
@@ -181,7 +186,7 @@ function matches(p){
   const h = hits(p);
   return (F.type === "all" || p.kind === F.type)
     && (!F.mkts.length || F.mkts.includes(p.market))
-    && (F.side === "all" || p.side === F.side)
+    && (!F.sides.length || F.sides.includes(p.side))
     && p.model >= F.model && p.ev >= F.ev && amer(p.odds) <= F.price
     && (!F.books.length || F.books.includes(p.book))
     && (!F.games.length || F.games.includes(gameOf(p)))
@@ -190,7 +195,7 @@ function matches(p){
     && (!q || (p.player + " " + p.team + " " + p.opp + " " + p.pick + " " + p.market).toLowerCase().includes(q));
 }
 function activeCount(){
-  return (F.type !== "all") + (F.mkts.length > 0) + (F.side !== "all") + (F.model > 0) + (F.ev !== 3) + (F.price !== 300)
+  return (F.type !== "all") + (F.mkts.length > 0) + (F.sides.length > 0) + (F.model > 0) + (F.ev !== 3) + (F.price !== 300)
        + (F.books.length > 0) + (F.games.length > 0) + F.gap + F.hit;
 }
 function chipRow(el, items, sel, onToggle){
@@ -203,7 +208,8 @@ function seg(el, val, onPick){
 }
 function syncSheet(){
   seg($("ftype"), F.type, v => F.type = v);
-  seg($("fside"), F.side, v => F.side = v);
+  chipRow($("fside"), ["Over", "Under"], F.sides, v => toggle(F.sides, v));
+  $("dir").textContent = F.dir === "desc" ? "High to low" : "Low to high";
   seg($("sort"), F.sort, v => F.sort = v);
   chipRow($("fmkt"), MARKETS, F.mkts, v => toggle(F.mkts, v));
   chipRow($("fbook"), BOOKS, F.books, v => toggle(F.books, v));
@@ -217,7 +223,7 @@ function syncSheet(){
   const chips = [];
   if (F.type !== "all") chips.push(["type", F.type === "player" ? "Player props" : "Game lines"]);
   F.mkts.forEach(m => chips.push(["mkt:" + m, m]));
-  if (F.side !== "all") chips.push(["side", F.side]);
+  F.sides.forEach(s => chips.push(["side:" + s, s + " only"]));
   if (F.model) chips.push(["model", "Model " + F.model + "%+"]);
   if (F.ev !== 3) chips.push(["ev", "Edge " + (F.ev > 0 ? "+" : "") + F.ev + "%+"]);
   if (F.price !== 300) chips.push(["price", "Odds to " + (F.price > 0 ? "+" : "") + F.price]);
@@ -229,7 +235,7 @@ function syncSheet(){
   [...$("active").querySelectorAll("b")].forEach(b => b.onclick = () => { clearOne(b.dataset.k); syncSheet(); render(); });
 }
 function clearOne(k){
-  if (k === "type") F.type = "all"; else if (k === "side") F.side = "all"; else if (k === "model") F.model = 0;
+  if (k === "type") F.type = "all"; else if (k.startsWith("side:")) toggle(F.sides, k.slice(5)); else if (k === "model") F.model = 0;
   else if (k === "ev") F.ev = 3; else if (k === "price") F.price = 300; else if (k === "gap") F.gap = false; else if (k === "hit") F.hit = false;
   else if (k.startsWith("mkt:")) toggle(F.mkts, k.slice(4)); else if (k.startsWith("book:")) toggle(F.books, k.slice(5)); else if (k.startsWith("game:")) toggle(F.games, k.slice(5));
 }
@@ -280,8 +286,9 @@ function fmtSpread(p){
 function render(){
   save();
   let rows = PLAYS.filter(matches);
-  rows.sort((a, b) => F.sort === "model" ? b.model - a.model : F.sort === "kick" ? new Date(a.kick) - new Date(b.kick) : b.ev - a.ev);
-  $("count").textContent = `${rows.length} of ${PLAYS.length} priced bets. Updated Thu Oct 08, 05:39 AM.`;
+  const key = p => F.sort === "model" ? p.model : F.sort === "kick" ? -new Date(p.kick) : F.sort === "odds" ? amer(p.odds) : p.ev;
+  rows.sort((a, b) => F.dir === "desc" ? key(b) - key(a) : key(a) - key(b));
+  $("count").textContent = `${rows.length} of ${PLAYS.length} priced bets. Updated Thu Oct 08, 05:54 AM.`;
   $("applyf").textContent = `Show ${rows.length} plays`;
   $("list").innerHTML = rows.length
     ? rows.slice(0, 150).map(card).join("") + (rows.length > 150 ? `<div class="empty">Showing the top 150. Tighten the filters to see the rest.</div>` : "")
@@ -296,7 +303,8 @@ $("fgap").onchange = e => { F.gap = e.target.checked; syncSheet(); render(); };
 $("fhit").onchange = e => { F.hit = e.target.checked; syncSheet(); render(); };
 const open = v => document.body.classList.toggle("open", v);
 $("openf").onclick = () => open(true); $("closef").onclick = $("applyf").onclick = $("scrim").onclick = () => open(false);
-$("resetf").onclick = () => { F = Object.assign({}, DEF, {q: F.q, sort: F.sort}); syncSheet(); render(); };
+$("resetf").onclick = () => { F = Object.assign({}, DEF, {q: F.q, sort: F.sort, dir: F.dir}); syncSheet(); render(); };
+$("dir").onclick = () => { F.dir = F.dir === "desc" ? "asc" : "desc"; syncSheet(); render(); };
 document.addEventListener("keydown", e => { if (e.key === "Escape") open(false); });
 if (RESULTS){
   $("results").innerHTML = `<section class="results" aria-label="Season results">
