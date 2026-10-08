@@ -26,7 +26,9 @@ select{border:1px solid var(--mint);background:var(--felt-2);color:#F2F5F8;borde
 .seg{display:flex;border:1px solid var(--mint);background:var(--felt-2);border-radius:12px;padding:3px;gap:2px;flex:1}
 .seg button{flex:1;border:0;background:transparent;color:#93A1B3;min-height:34px;border-radius:9px;font:700 13px var(--body)}
 .seg button[aria-pressed=true]{background:#F2F5F8;color:var(--ink)}
-main{max-width:640px;margin:0 auto;padding:12px 12px 120px}
+main{max-width:1180px;margin:0 auto;padding:12px 12px 120px}
+header,.bar-in{max-width:1180px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;align-items:start}
 .intro{background:var(--felt-2);border:1px solid #2E4056;color:#DCE3EB;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.4;margin-bottom:12px}
 .card{background:var(--paper);border-radius:14px;margin:0 0 12px;box-shadow:0 1px 0 rgba(0,0,0,.25);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
@@ -141,7 +143,7 @@ function card(x){ const p = x.p, s = x.s;
   <div class="stats"><span>Market win %<b>${p.market_p}</b></span><span>Model<b>${p.model}</b></span><span>Streak<b>${Math.round(100 * s.rate)}%</b></span></div>
   <div class="foot"><span class="meta">${p.gap ? "Role changed? Streak is from a different job. Market says " + p.market_p + "%." : ""}</span><button class="addp" data-id="${esc(idOf(p))}" aria-pressed="${PARLAY.has(idOf(p))}">${PARLAY.has(idOf(p)) ? "In slip" : "+ Add"}</button></div></article>`;
 }
-function render(){ saveAll(); const rows = pool(); $("count").textContent = `Week 5 · ${rows.length} legs match`; $("list").innerHTML = rows.length ? rows.slice(0, 120).map(card).join("") : `<div class="empty"><b>No legs match.</b> Lower the hit rate, the game count, or the favorite threshold.</div>`; renderTray(); }
+function render(){ saveAll(); const rows = pool(); $("count").textContent = `Week 5 · ${rows.length} legs match`; $("list").innerHTML = rows.length ? `<div class="grid">${rows.slice(0, 160).map(card).join("")}</div>` : `<div class="empty"><b>No legs match.</b> Lower the hit rate, the game count, or the favorite threshold.</div>`; renderTray(); }
 function stats(legs){ const d = legs.reduce((a, p) => a * dec(p.odds), 1), pm = legs.reduce((a, p) => a * p.market_p / 100, 1); return {d, pm, games: new Set(legs.map(gameOf)).size}; }
 function renderTray(){ const legs = PLAYS.filter(p => PARLAY.has(idOf(p))); $("tray").hidden = !legs.length; if (!legs.length){ $("legs").innerHTML = `<p class="note">Empty. Add legs above or auto-build.</p>`; $("psummary").innerHTML = ""; return; }
   const s = stats(legs); $("trayN").textContent = legs.length + (legs.length === 1 ? " leg" : " legs"); $("trayOdds").textContent = toAmer(s.d); $("trayP").textContent = Math.round(100 * s.pm) + "% to hit";
