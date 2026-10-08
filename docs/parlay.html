@@ -82,9 +82,10 @@ body.popen .scrim{opacity:1;pointer-events:auto}body.popen .sheet{transform:none
     <div class="seg" id="fside"><button data-v="all" aria-pressed="true">Any side</button><button data-v="Over">Over</button><button data-v="Under">Under</button></div>
     <div class="seg" id="fseason"><button data-v="all" aria-pressed="true">Incl. last season</button><button data-v="cur">This season only</button></div>
   </div>
+  <div class="row"><div class="seg" id="fgap"><button data-v="hide" aria-pressed="true">Hide role-change legs</button><button data-v="show">Show all</button></div></div>
 </div></div>
 <main>
-  <div class="intro">This page ranks legs by how often they've cleared today's line, not by value. Heavy favorites that keep hitting are the raw material; the slip at the bottom shows what they're really worth once multiplied. A 90% leg five times over is a 59% parlay.</div>
+  <div class="intro">This page ranks legs by how often they've cleared today's line, not by value. Heavy favorites that keep hitting are the raw material; the slip at the bottom shows what they're really worth once multiplied. A 90% leg five times over is a 59% parlay. Legs where the market and model disagree sharply are hidden by default: a backup who was under 35 yards ten times straight stops being a lock the week he becomes the starter.</div>
   <div id="list"></div>
 </main>
 <div class="tray" id="tray" hidden><button class="tray-main" id="opentray"><span><b id="trayN">0 legs</b> <span id="trayOdds"></span></span><span id="trayP"></span></button><button class="tray-x" id="cleartray" aria-label="Clear parlay">&times;</button></div>
@@ -111,7 +112,7 @@ const amer = o => parseInt(o, 10) || 0, dec = o => { const n = amer(o); return n
 const toAmer = d => d >= 2 ? "+" + Math.round((d - 1) * 100) : String(Math.round(-100 / (d - 1)));
 const idOf = p => p.player + "|" + p.mkey + "|" + p.side + "|" + p.line_num;
 const gameOf = p => p.kind === "game" ? p.player : (p.team < p.opp ? p.team + " / " + p.opp : p.opp + " / " + p.team);
-let S = {min: 0.8, n: 6, odds: -101, side: "all", season: "all", target: 3};
+let S = {min: 0.8, n: 6, odds: -101, side: "all", season: "all", target: 3, gap: "hide"};
 try { Object.assign(S, JSON.parse(localStorage.getItem("parlayPage") || "{}")); } catch(e) {}
 let PARLAY = new Set(); try { PARLAY = new Set(JSON.parse(localStorage.getItem("parlayLegs") || "[]")); } catch(e) {}
 const saveAll = () => { try { localStorage.setItem("parlayPage", JSON.stringify(S)); localStorage.setItem("parlayLegs", JSON.stringify([...PARLAY])); } catch(e) {} };
@@ -119,7 +120,7 @@ function log(p){ let g = p.kind === "game" ? p.recent : (p.streak && p.streak.le
 function hitOf(p, g){ return p.mkey === "game_spread" ? (g.line == null ? null : g.v + g.line > 0) : p.mkey === "game_moneyline" ? g.v > 0 : p.mkey === "game_total" ? (g.line == null ? null : (p.side === "Over" ? g.v > g.line : g.v < g.line)) : (p.side === "Over" ? g.v > p.line_num : g.v < p.line_num); }
 function streak(p){ const g = log(p); const hs = g.map(x => hitOf(p, x)); const of = hs.filter(x => x !== null).length, n = hs.filter(Boolean).length; return {n, of, rate: of ? n / of : 0, each: hs, g}; }
 function pool(){
-  return PLAYS.filter(p => !/no-recent-game|odd-line|OUT/.test(p.flags) && amer(p.odds) <= S.odds && amer(p.odds) < 0 && (S.side === "all" || p.side === S.side))
+  return PLAYS.filter(p => !/no-recent-game|odd-line|OUT/.test(p.flags) && (S.gap === "show" || !p.gap) && amer(p.odds) <= S.odds && amer(p.odds) < 0 && (S.side === "all" || p.side === S.side))
     .map(p => ({p, s: streak(p)})).filter(x => x.s.of >= S.n && x.s.rate >= S.min)
     .sort((a, b) => b.s.rate - a.s.rate || b.s.of - a.s.of || b.p.market_p - a.p.market_p);
 }
@@ -128,7 +129,7 @@ function card(x){ const p = x.p, s = x.s;
   return `<article class="card"><div class="top"><div><div class="name">${esc(p.player)}</div><div class="meta">${p.kind === "game" ? esc(p.market) : esc(p.pos) + " " + esc(p.team) + " vs " + esc(p.opp)} · ${when(p.kick)}</div><div class="pick">${esc(p.pick)}</div></div><div class="odds">${esc(p.odds)}<small>${esc(p.book)}</small></div></div>
   <div class="dots">${dots}<span>${s.n} of ${s.of}</span></div>
   <div class="stats"><span>Market win %<b>${p.market_p}</b></span><span>Model<b>${p.model}</b></span><span>Streak<b>${Math.round(100 * s.rate)}%</b></span></div>
-  <div class="foot"><span class="meta">${p.gap ? "check news" : ""}</span><button class="addp" data-id="${esc(idOf(p))}" aria-pressed="${PARLAY.has(idOf(p))}">${PARLAY.has(idOf(p)) ? "In slip" : "+ Add"}</button></div></article>`;
+  <div class="foot"><span class="meta">${p.gap ? "Role changed? Streak is from a different job. Market says " + p.market_p + "%." : ""}</span><button class="addp" data-id="${esc(idOf(p))}" aria-pressed="${PARLAY.has(idOf(p))}">${PARLAY.has(idOf(p)) ? "In slip" : "+ Add"}</button></div></article>`;
 }
 function render(){ saveAll(); const rows = pool(); $("count").textContent = `Week 5 · ${rows.length} legs match`; $("list").innerHTML = rows.length ? rows.slice(0, 120).map(card).join("") : `<div class="empty"><b>No legs match.</b> Lower the hit rate, the game count, or the favorite threshold.</div>`; renderTray(); }
 function stats(legs){ const d = legs.reduce((a, p) => a * dec(p.odds), 1), pm = legs.reduce((a, p) => a * p.market_p / 100, 1); return {d, pm, games: new Set(legs.map(gameOf)).size}; }
@@ -146,7 +147,7 @@ const openP = v => document.body.classList.toggle("popen", v);
 function seg(el, val, fn){ [...el.children].forEach(b => { b.setAttribute("aria-pressed", b.dataset.v === val); b.onclick = () => { fn(b.dataset.v); seg(el, b.dataset.v, fn); render(); }; }); }
 $("fmin").value = S.min; $("fn").value = S.n; $("fodds").value = S.odds;
 $("fmin").onchange = e => { S.min = +e.target.value; render(); }; $("fn").onchange = e => { S.n = +e.target.value; render(); }; $("fodds").onchange = e => { S.odds = +e.target.value; render(); };
-seg($("fside"), S.side, v => S.side = v); seg($("fseason"), S.season, v => S.season = v); seg($("ptarget"), String(S.target), v => S.target = +v);
+seg($("fside"), S.side, v => S.side = v); seg($("fseason"), S.season, v => S.season = v); seg($("fgap"), S.gap, v => S.gap = v); seg($("ptarget"), String(S.target), v => S.target = +v);
 $("list").addEventListener("click", e => { const b = e.target.closest(".addp"); if (!b) return; PARLAY.has(b.dataset.id) ? PARLAY.delete(b.dataset.id) : PARLAY.add(b.dataset.id); render(); });
 $("opentray").onclick = () => openP(true); $("closep").onclick = $("scrim").onclick = () => openP(false);
 $("cleartray").onclick = $("clearp").onclick = () => { PARLAY = new Set(); render(); };
