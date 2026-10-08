@@ -3,7 +3,7 @@ import os
 
 # ---- Season / data ----
 SEASON = 2026
-PRIOR_SEASONS = 1            # how many past seasons feed the player baselines
+PRIOR_SEASONS = 0            # past seasons feeding player baselines and game logs (0 = this season only)
 PRIOR_SEASON_WEIGHT = 0.6    # last season's games count 60% as much as this season's
 HALF_LIFE_GAMES = 5          # recency decay: a game 5 games ago counts half as much
 MAX_GAMES = 17               # look-back window per player
