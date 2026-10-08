@@ -66,6 +66,8 @@ def lines_with_openers():
     now = h.groupby("event_id").last()
     cur = now.join(first).reset_index()
     cur = cur[pd.to_datetime(cur.commence) > datetime.now(timezone.utc) - pd.Timedelta(hours=4)]
+    if len(cur):  # only this week's slate, not next week's early lines
+        cur = cur[pd.to_datetime(cur.commence) <= pd.to_datetime(cur.commence).min() + pd.Timedelta(days=6)]
     return cur
 
 
@@ -97,19 +99,19 @@ def fetch_splits():
     for g in games:
         teams = {t["id"]: t.get("full_name") for t in g.get("teams", [])}
         away, home = teams.get(g.get("away_team_id")), teams.get(g.get("home_team_id"))
-        odds = [o for o in g.get("odds", []) if o.get("type") == "game" and o.get("bet_info")]
-        if not (away and home and odds):
+        books = g.get("markets") or {}
+        ev = (books.get("15") or next(iter(books.values()), {}) or {}).get("event") or {}
+        if not (away and home and ev):
             continue
-        bi = odds[0]["bet_info"]
-        out[(away, home)] = dict(
-            spread_home_tickets=_pct(bi, "spread", "home", "tickets", "percent"),
-            spread_home_money=_pct(bi, "spread", "home", "money", "percent"),
-            spread_away_tickets=_pct(bi, "spread", "away", "tickets", "percent"),
-            spread_away_money=_pct(bi, "spread", "away", "money", "percent"),
-            over_tickets=_pct(bi, "total", "over", "tickets", "percent"),
-            over_money=_pct(bi, "total", "over", "money", "percent"),
-            under_tickets=_pct(bi, "total", "under", "tickets", "percent"),
-            under_money=_pct(bi, "total", "under", "money", "percent"))
+        d = {}
+        for o in ev.get("spread", []):
+            side = "spread_home" if o.get("side") == "home" else "spread_away"
+            d[f"{side}_tickets"], d[f"{side}_money"] = _pct(o, "bet_info", "tickets", "percent"), _pct(o, "bet_info", "money", "percent")
+        for o in ev.get("total", []):
+            side = "over" if o.get("side") == "over" else "under"
+            d[f"{side}_tickets"], d[f"{side}_money"] = _pct(o, "bet_info", "tickets", "percent"), _pct(o, "bet_info", "money", "percent")
+        if any(v for v in d.values()):
+            out[(away, home)] = d
     return _normalize(out)
 
 
