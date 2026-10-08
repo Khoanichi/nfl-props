@@ -200,7 +200,7 @@ def recent_log(sched, season, team, market, opp_for_total=None):
             margin = (r.home_score - r.away_score) if is_home else (r.away_score - r.home_score)
             spread = (-r.spread_line) if is_home else r.spread_line   # team's own spread, negative = favored
             out.append(dict(w=w, opp=opp, v=float(margin), line=float(spread) if pd.notna(spread) else None))
-    return out[::-1]
+    return out  # oldest to newest
 
 
 def main(fresh=False, log=False):
