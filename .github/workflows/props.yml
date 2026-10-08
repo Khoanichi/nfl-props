@@ -3,10 +3,10 @@ name: Weekly props
 on:
   workflow_dispatch:          # run it by hand from the Actions tab (or the GitHub app on your phone)
   schedule:                   # UTC. 16:00 UTC = 9 AM Pacific
-    - cron: "0 16 * * 4"      # Thursday morning: props are posted
-    - cron: "0 16 * * 6"      # Saturday morning: injury designations are final
-    - cron: "0 15 * * 0"      # Sunday 8 AM Pacific: last look before early games
-    - cron: "0 16 * * 2"      # Tuesday: grade last week
+    - cron: "0 16 * * 6"      # Saturday 9 AM Pacific: props posted, injury designations final
+    - cron: "0 16 * * 2"      # Tuesday: grade last week (costs no API credits)
+    # Free Odds API plan = 500 credits/month, about 90 per run with 6 markets. One scheduled run a
+    # week keeps you under it. Add "0 15 * * 0" (Sunday 8 AM Pacific) back if you move to a paid plan.
 
 permissions:
   contents: write
