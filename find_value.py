@@ -6,6 +6,7 @@ Usage:
   python find_value.py --week 5 --log           # also append the plays to bet_log.csv for grading later
 """
 import argparse
+import glob
 import os
 from datetime import datetime
 
@@ -43,9 +44,11 @@ def evaluate(row):
         ("Over", po, fair_over, row["best_over"], row["book_over"]),
         ("Under", pu, 1 - fair_over, row["best_under"], row["book_under"]),
     ]:
-        if pd.isna(price):
+        if pd.isna(price) or price > C.MAX_PRICE_DEC:
             continue
-        p_blend = C.MODEL_WEIGHT * p_model + (1 - C.MODEL_WEIGHT) * p_mkt
+        w = C.MODEL_WEIGHT if row["two_sided"] else C.ONE_SIDED_MODEL_WEIGHT
+        logit = lambda p: np.log(np.clip(p, 1e-4, 1 - 1e-4) / (1 - np.clip(p, 1e-4, 1 - 1e-4)))
+        p_blend = 1 / (1 + np.exp(-(w * logit(p_model) + (1 - w) * logit(p_mkt))))
         p_loss = max(0.0, 1 - p_blend - push)
         ev = p_blend * (price - 1) - p_loss
         kelly = max(0.0, ev / (price - 1)) * C.KELLY_FRACTION
@@ -59,7 +62,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--week", default="auto", help="week number, or auto = next week with games")
     ap.add_argument("--season", type=int, default=C.SEASON)
-    ap.add_argument("--cache", help="saved odds JSON to reuse")
+    ap.add_argument("--cache", help="saved odds JSON to reuse (default: newest cache file if recent enough)")
+    ap.add_argument("--fresh", action="store_true", help="always pull new odds")
     ap.add_argument("--log", action="store_true", help="append plays to the bet log")
     ap.add_argument("--all", action="store_true", help="show every priced prop, not just +EV")
     a = ap.parse_args()
@@ -75,6 +79,14 @@ def main():
     proj = build_projections(ps, sched, a.season, a.week)
     proj = proj.merge(injury_table(inj, a.week), on="player_id", how="left")
 
+    if not a.cache and not a.fresh:
+        def stamp(p):  # time is in the file name, since git checkout resets modification times
+            return datetime.strptime(os.path.basename(p)[5:18], "%Y%m%d_%H%M")
+        recent = [p for p in glob.glob(f"{C.CACHE_DIR}/odds_*.json")
+                  if (datetime.now() - stamp(p)).total_seconds() < C.CACHE_MAX_AGE_HOURS * 3600]
+        if recent:
+            a.cache = max(recent, key=stamp)
+            print(f"Reusing odds from {a.cache} (use --fresh to pull new lines)")
     print("Loading odds...")
     mt = market_table(fetch_props(use_cache=a.cache))
     if mt.empty:

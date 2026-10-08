@@ -15,17 +15,18 @@ REGIONS = "us"               # each region multiplies credit cost
 BOOKMAKERS = ""              # e.g. "draftkings,fanduel,betmgm,caesars" (overrides REGIONS if set)
 CACHE_DIR = "cache"
 
-# Market key -> how to model it.
+# Market key -> how to model it. Three markets are commented out to fit the free Odds API plan
+# (500 credits/month; each run costs about markets x games). Uncomment them on a paid plan.
 #   stat: nflverse column  | vol: opportunity column (None = the stat IS volume)
 #   k: shrinkage strength for efficiency (in units of vol) | script: pass/rush/none
 #   alpha: how strongly the team implied total moves the mean (1.0 = proportional)
 MARKETS = {
     "player_pass_yds":         dict(stat="passing_yards",   vol="attempts", pos=["QB"],             kind="yards", k=150, script="pass", alpha=0.6),
-    "player_pass_attempts":    dict(stat="attempts",        vol=None,       pos=["QB"],             kind="count", k=0,   script="pass", alpha=0.3),
-    "player_pass_completions": dict(stat="completions",     vol="attempts", pos=["QB"],             kind="count", k=150, script="pass", alpha=0.4),
+    # "player_pass_attempts":    dict(stat="attempts",        vol=None,       pos=["QB"],             kind="count", k=0,   script="pass", alpha=0.3),
+    # "player_pass_completions": dict(stat="completions",     vol="attempts", pos=["QB"],             kind="count", k=150, script="pass", alpha=0.4),
     "player_pass_tds":         dict(stat="passing_tds",     vol="attempts", pos=["QB"],             kind="td",    k=200, script="pass", alpha=1.0),
     "player_rush_yds":         dict(stat="rushing_yards",   vol="carries",  pos=["RB", "QB"],       kind="yards", k=60,  script="rush", alpha=0.0),
-    "player_rush_attempts":    dict(stat="carries",         vol=None,       pos=["RB"],             kind="count", k=0,   script="rush", alpha=0.0),
+    # "player_rush_attempts":    dict(stat="carries",         vol=None,       pos=["RB"],             kind="count", k=0,   script="rush", alpha=0.0),
     "player_reception_yds":    dict(stat="receiving_yards", vol="targets",  pos=["WR", "TE", "RB"], kind="yards", k=30,  script="pass", alpha=0.6),
     "player_receptions":       dict(stat="receptions",      vol="targets",  pos=["WR", "TE", "RB"], kind="count", k=30,  script="pass", alpha=0.4),
     "player_anytime_td":       dict(stat="any_td",          vol="opps",     pos=["RB", "WR", "TE"], kind="td",    k=60,  script="none", alpha=1.0),
@@ -40,7 +41,10 @@ PROJ_ERR = 0.25              # extra uncertainty in our own mean (25% of the pro
 DIST_PRIOR_GAMES = 8         # shrink each player's volatility toward his position's
 
 # ---- Value / staking ----
-MODEL_WEIGHT = 0.35          # final prob = 35% model + 65% no-vig market. The market is sharp; respect it.
+MODEL_WEIGHT = 0.35          # final prob blends model and no-vig market in odds space, 35% model. The market is sharp; respect it.
+ONE_SIDED_MODEL_WEIGHT = 0.15  # less trust in the model when a book posts only one side (anytime TD), since the de-vig is a guess
+MAX_PRICE_DEC = 4.0          # ignore longshots above +300: tail probabilities are where both model and de-vig are least reliable
+CACHE_MAX_AGE_HOURS = 12     # reuse the last odds pull if it is newer than this (saves API credits); --fresh forces a new pull
 ONE_SIDED_HOLD = 0.07        # assumed vig when a book only posts one side (e.g. anytime TD "Yes")
 MIN_EV = 0.03                # only show plays with >= +3% expected value
 MAX_RAW_EDGE = 0.15          # model vs market gaps bigger than this usually mean missing news: flagged
