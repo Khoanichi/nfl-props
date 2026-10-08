@@ -148,7 +148,7 @@ def main():
         for market, spec in C.MARKETS.items():
             recent[(pid, market)] = json.dumps([
                 dict(w=f"{'W' if s == a.season else str(s)[2:] + 'W'}{int(w)}", opp=o, v=float(v), cur=bool(s == a.season))
-                for s, w, o, v in zip(g.season, g.week, g.opponent_team, g[spec["stat"]].fillna(0))])
+                for s, w, o, v in zip(g.season, g.week, g.opponent_team, g[spec["stat"]].fillna(0))][::-1])  # oldest to newest
 
     plays = []
     for _, r in m.iterrows():
