@@ -21,8 +21,11 @@ def fetch_props(markets=None, days_ahead=7, use_cache=None):
     if not C.ODDS_API_KEY:
         raise SystemExit("Set ODDS_API_KEY first (see README).")
     markets = markets or list(C.MARKETS)
-    params = {"apiKey": C.ODDS_API_KEY}
-    events = requests.get(f"{BASE}/events", params=params, timeout=30).json()
+    params = {"apiKey": C.ODDS_API_KEY.strip()}
+    r = requests.get(f"{BASE}/events", params=params, timeout=30)
+    if r.status_code != 200 or not isinstance(r.json(), list):
+        raise SystemExit(f"Odds API rejected the request ({r.status_code}): {r.text[:300]}")
+    events = r.json()
     cutoff = datetime.now(timezone.utc) + timedelta(days=days_ahead)
     events = [e for e in events
               if datetime.fromisoformat(e["commence_time"].replace("Z", "+00:00")) <= cutoff]
