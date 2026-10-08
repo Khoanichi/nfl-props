@@ -42,7 +42,7 @@ header p{margin:4px 0 0;color:#c9d6cd;font-size:14px}
 .active{max-width:640px;margin:0 auto;padding:8px 16px 0;display:flex;gap:6px;flex-wrap:wrap}
 .active span{background:var(--felt-2);color:var(--paper);border:1px solid var(--mint);border-radius:999px;padding:4px 10px;font-size:13px;display:flex;gap:6px;align-items:center}
 .active span b{font-weight:600;cursor:pointer;opacity:.8}
-main{max-width:640px;margin:0 auto;padding:12px 12px 60px}
+main{max-width:640px;margin:0 auto;padding:12px 12px 110px}
 /* cards */
 .card{background:var(--paper);border-radius:6px;margin:0 0 14px;position:relative;box-shadow:0 2px 0 var(--paper-edge)}
 .top{padding:14px 16px 12px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
@@ -78,12 +78,34 @@ main{max-width:640px;margin:0 auto;padding:12px 12px 60px}
 .results div{font-size:13px;color:var(--ink-soft)}
 .results b{display:block;font:600 22px var(--display);color:var(--ink)}
 footer{color:#a7bbb0;font-size:14px;text-align:center;padding:0 20px 30px;max-width:640px;margin:0 auto}
+/* parlay tray */
+.tray{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:15;display:flex;gap:8px}
+.tray[hidden]{display:none}
+.tray-main{flex:1;display:flex;justify-content:space-between;align-items:center;border:0;background:var(--ink);color:var(--paper);border-radius:12px;min-height:52px;padding:0 16px;font:600 15px var(--body);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.tray-main b{font:600 17px var(--display)}
+.trayev{color:#7fe0a9}
+.tray-x{border:0;background:var(--ink);color:var(--paper);border-radius:12px;width:52px;font-size:24px}
+.addp{border:1.5px solid #cfc6ad;background:transparent;color:var(--ink);border-radius:8px;padding:6px 10px;font:600 13px var(--body);min-height:34px}
+.addp[aria-pressed=true]{background:var(--ok);border-color:var(--ok);color:#fff}
+.note{font-size:13px;color:var(--ink-soft);margin:6px 0 10px}
+.autob{width:100%;min-height:46px;border:0;border-radius:10px;background:var(--ink);color:var(--paper);font:600 16px var(--body)}
+.leg{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed #e7dfc9}
+.leg .t{min-width:0}
+.leg .t b{display:block;font:600 16px var(--display)}
+.leg .t small{font-size:12.5px;color:var(--ink-soft)}
+.leg .o{font:600 17px var(--display);white-space:nowrap}
+.leg .rm{border:0;background:transparent;font-size:22px;color:var(--ink-soft);padding:0 4px}
+.ps{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.ps div{background:#ebe4d2;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--ink-soft)}
+.ps b{display:block;font:600 22px var(--display);color:var(--ink)}
+.warn{margin-top:10px;padding:8px 10px;border-radius:6px;background:#f1dcd8;color:#8a2a22;font-size:13px}
+.good{margin-top:10px;padding:8px 10px;border-radius:6px;background:#dcebdd;color:#1f5e37;font-size:13px}
 /* filter sheet */
 .scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
 .sheet{position:fixed;left:0;right:0;bottom:0;max-height:88vh;background:var(--paper);color:var(--ink);border-radius:16px 16px 0 0;transform:translateY(102%);transition:transform .25s;z-index:21;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
-body.open .scrim{opacity:1;pointer-events:auto}
-body.open .sheet{transform:none}
-@media (min-width:700px){.sheet{left:50%;right:auto;width:560px;transform:translate(-50%,102%)}body.open .sheet{transform:translate(-50%,0)}}
+body.open #scrim,body.popen #scrim2{opacity:1;pointer-events:auto}
+body.open #sheet,body.popen #psheet{transform:none}
+@media (min-width:700px){.sheet{left:50%;right:auto;width:560px;transform:translate(-50%,102%)}body.open #sheet,body.popen #psheet{transform:translate(-50%,0)}}
 .sh{display:flex;justify-content:space-between;align-items:center;padding:14px 18px 8px}
 .sh h2{font:600 24px var(--display);margin:0}
 .sh button{border:0;background:transparent;font:600 15px var(--body);color:var(--chip);padding:6px}
@@ -114,7 +136,7 @@ input[type=range]{width:100%;accent-color:var(--ok);height:34px}
 </head>
 <body>
 <header>
-  <div><h1>Week 5 board</h1><p id="count">Updated Thu Oct 08, 06:03 AM.</p></div>
+  <div><h1>Week 5 board</h1><p id="count">Updated Thu Oct 08, 06:12 AM.</p></div>
   <nav class="pages"><a class="on" href="index.html">Board</a><a href="games.html">Games</a></nav>
 </header>
 <div class="bar"><div class="bar-in">
@@ -138,6 +160,26 @@ input[type=range]{width:100%;accent-color:var(--ok);height:34px}
 </main>
 <footer>Win % shown as model / market. Stake is a share of your bankroll (quarter Kelly, 2% max). Game lines use a results-based power rating; totals are judged on price only.</footer>
 
+<div class="tray" id="tray" hidden>
+  <button class="tray-main" id="opentray"><span><b id="trayN">0 legs</b> <span id="trayOdds"></span></span><span id="trayEv" class="trayev"></span></button>
+  <button class="tray-x" id="cleartray" aria-label="Clear parlay">&times;</button>
+</div>
+<div class="scrim" id="scrim2"></div>
+<section class="sheet" id="psheet" role="dialog" aria-modal="true" aria-label="Parlay builder">
+  <div class="grab"></div>
+  <div class="sh"><h2>Parlay builder</h2><button id="closep">Done</button></div>
+  <div class="sb">
+    <div class="sec" style="border-top:0">
+      <h3>Auto-build to a target</h3>
+      <div class="seg2" id="ptarget"><button data-v="2">+100</button><button data-v="3" aria-pressed="true">+200</button><button data-v="4">+300</button><button data-v="6">+500</button></div>
+      <p class="note">Picks the highest-probability legs with a positive edge, one per game, one per player, until the payout reaches the target. Legs that hit 5+ of their last 6 come first.</p>
+      <button class="autob" id="autobuild">Auto-build parlay</button>
+    </div>
+    <div class="sec"><h3>Legs</h3><div id="legs"></div></div>
+    <div class="sec" id="psummary"></div>
+  </div>
+  <div class="sf"><button class="reset" id="clearp">Clear</button><button class="apply" id="copyp">Copy slip</button></div>
+</section>
 <div class="scrim" id="scrim"></div>
 <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Filters">
   <div class="grab"></div>
@@ -293,8 +335,7 @@ function card(p){
       <div>Edge<b class="ev">${p.ev > 0 ? "+" : ""}${p.ev}%</b></div>
     </div>
     ${gamelog(p)}
-    ${p.flags ? `<div class="flag ${/BIG-GAP|Q-tag/.test(p.flags) ? "" : "soft"}">${esc(p.flags.replace("BIG-GAP:check-news","Model and market disagree: check news").replace("Q-tag","Questionable").replace("small-sample","Few games of data").replace("one-sided-mkt","Only one side priced"))} &nbsp; Stake ${p.stake}%</div>`
-             : `<div class="flag soft">Stake ${p.stake}% of bankroll</div>`}
+    <div class="flag ${/BIG-GAP|Q-tag/.test(p.flags) ? "" : "soft"}" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${p.flags ? esc(p.flags.replace("BIG-GAP:check-news","Model and market disagree: check news").replace("Q-tag","Questionable").replace("small-sample","Few games of data").replace("one-sided-mkt","Only one side priced")) + " &nbsp;" : ""}Stake ${p.stake}%</span><button class="addp" data-id="${esc(idOf(p))}" aria-pressed="${PARLAY.has(idOf(p))}">${PARLAY.has(idOf(p)) ? "In parlay" : "+ Parlay"}</button></div>
   </article>`;
 }
 function fmtSpread(p){
@@ -308,7 +349,7 @@ function render(){
   let rows = PLAYS.filter(matches);
   const key = p => F.sort === "model" ? p.model : F.sort === "kick" ? -new Date(p.kick) : F.sort === "odds" ? amer(p.odds) : p.ev;
   rows.sort((a, b) => F.dir === "desc" ? key(b) - key(a) : key(a) - key(b));
-  $("count").textContent = `${rows.length} of ${PLAYS.length} priced bets. Updated Thu Oct 08, 06:03 AM.`;
+  $("count").textContent = `${rows.length} of ${PLAYS.length} priced bets. Updated Thu Oct 08, 06:12 AM.`;
   $("applyf").textContent = `Show ${rows.length} plays`;
   $("list").innerHTML = rows.length
     ? rows.slice(0, 150).map(card).join("") + (rows.length > 150 ? `<div class="empty">Showing the top 150. Tighten the filters to see the rest.</div>` : "")
@@ -326,6 +367,53 @@ $("openf").onclick = () => open(true); $("closef").onclick = $("applyf").onclick
 $("resetf").onclick = () => { F = Object.assign({}, DEF, {q: F.q, sort: F.sort, dir: F.dir}); syncSheet(); render(); };
 $("dir").onclick = () => { F.dir = F.dir === "desc" ? "asc" : "desc"; syncSheet(); render(); };
 document.addEventListener("keydown", e => { if (e.key === "Escape") open(false); });
+// ---- parlay builder ----
+const idOf = p => p.player + "|" + p.mkey + "|" + p.side + "|" + p.line_num;
+let PARLAY = new Set(); try { PARLAY = new Set(JSON.parse(localStorage.getItem("parlayLegs") || "[]")); } catch(e) {}
+let PTARGET = 3;
+const dec = o => { const n = amer(o); return n >= 100 ? 1 + n / 100 : n <= -100 ? 1 + 100 / -n : 1; };
+const toAmer = d => d >= 2 ? "+" + Math.round((d - 1) * 100) : String(Math.round(-100 / (d - 1)));
+const blend = p => { const m = p.model / 100, k = p.market_p / 100, w = p.kind === "game" && p.mkey === "game_total" ? 0 : 0.35;
+  const L = x => Math.log(Math.min(Math.max(x, 1e-4), 1 - 1e-4) / (1 - Math.min(Math.max(x, 1e-4), 1 - 1e-4))); return 1 / (1 + Math.exp(-(w * L(m) + (1 - w) * L(k)))); };
+const legsOf = () => PLAYS.filter(p => PARLAY.has(idOf(p)));
+function parlayStats(legs){
+  const d = legs.reduce((a, p) => a * dec(p.odds), 1), pb = legs.reduce((a, p) => a * blend(p), 1), pm = legs.reduce((a, p) => a * p.market_p / 100, 1);
+  return {d, pb, pm, ev: pb * d - 1, games: new Set(legs.map(gameOf)).size};
+}
+function savePar(){ try { localStorage.setItem("parlayLegs", JSON.stringify([...PARLAY])); } catch(e) {} }
+function renderTray(){
+  const legs = legsOf(); const t = $("tray"); t.hidden = legs.length === 0;
+  if (legs.length){ const s = parlayStats(legs); $("trayN").textContent = legs.length + (legs.length === 1 ? " leg" : " legs"); $("trayOdds").textContent = toAmer(s.d); $("trayEv").textContent = (s.ev >= 0 ? "+" : "") + (100 * s.ev).toFixed(1) + "% EV"; $("trayEv").style.color = s.ev >= 0 ? "#7fe0a9" : "#f3a08f"; }
+  const legsEl = $("legs");
+  legsEl.innerHTML = legs.length ? legs.map(p => `<div class="leg"><div class="t"><b>${esc(p.player)}</b><small>${esc(p.pick)} · ${esc(p.book)} · model ${p.model}%</small></div><span class="o">${esc(p.odds)}</span><button class="rm" data-id="${esc(idOf(p))}" aria-label="Remove leg">&times;</button></div>`).join("")
+    : `<p class="note">No legs yet. Tap "+ Parlay" on any card, or auto-build below.</p>`;
+  [...legsEl.querySelectorAll(".rm")].forEach(b => b.onclick = () => { PARLAY.delete(b.dataset.id); savePar(); renderTray(); render(); });
+  const sum = $("psummary");
+  if (!legs.length){ sum.innerHTML = ""; return; }
+  const s = parlayStats(legs); const same = s.games < legs.length;
+  sum.innerHTML = `<h3>If the book pays the legs multiplied</h3><div class="ps">
+    <div>Combined odds<b>${toAmer(s.d)}</b></div><div>Payout on $10<b>${(10 * s.d).toFixed(0)}</b></div>
+    <div>Our win chance<b>${(100 * s.pb).toFixed(0)}%</b></div><div>Market's win chance<b>${(100 * s.pm).toFixed(0)}%</b></div></div>
+    <div class="${s.ev >= 0 ? "good" : "warn"}">Expected value ${s.ev >= 0 ? "+" : ""}${(100 * s.ev).toFixed(1)}%. ${s.ev >= 0 ? "Every leg carries its own small edge, and they multiply." : "The legs' prices eat the edge once multiplied. Swap a leg for one with a better price."}</div>
+    ${same ? `<div class="warn">Two legs are from the same game. Their results move together, so the real win chance is not a simple multiply, and many books reprice same-game parlays. Treat the numbers above as optimistic.</div>` : ""}
+    <p class="note">Books often pay a bit less than the straight multiply on parlays. Check the slip's payout against the number above before you confirm.</p>`;
+}
+function autoBuild(){
+  const hitRate = p => { const h = hits(p); return h && h.of >= 4 ? h.n / h.of : 0; };
+  const pool = PLAYS.filter(p => !p.gap && p.ev >= 0 && dec(p.odds) < 2 && blend(p) >= 0.6)
+    .sort((a, b) => (hitRate(b) >= 5/6) - (hitRate(a) >= 5/6) || blend(b) - blend(a));
+  PARLAY = new Set(); const games = new Set(), players = new Set(); let d = 1;
+  for (const p of pool){ const g = gameOf(p); if (games.has(g) || players.has(p.player)) continue; PARLAY.add(idOf(p)); games.add(g); players.add(p.player); d *= dec(p.odds); if (d >= PTARGET || PARLAY.size >= 8) break; }
+  savePar(); renderTray(); render();
+}
+$("list").addEventListener("click", e => { const b = e.target.closest(".addp"); if (!b) return; const id = b.dataset.id; PARLAY.has(id) ? PARLAY.delete(id) : PARLAY.add(id); savePar(); renderTray(); render(); });
+const openP = v => document.body.classList.toggle("popen", v);
+$("opentray").onclick = () => openP(true); $("closep").onclick = $("scrim2").onclick = () => openP(false);
+$("cleartray").onclick = $("clearp").onclick = () => { PARLAY = new Set(); savePar(); renderTray(); render(); };
+$("autobuild").onclick = autoBuild;
+seg($("ptarget"), String(PTARGET), v => { PTARGET = +v; }); [...$("ptarget").children].forEach(b => b.onclick = () => { PTARGET = +b.dataset.v; seg($("ptarget"), String(PTARGET), v => { PTARGET = +v; }); });
+$("copyp").onclick = () => { const legs = legsOf(); const s = parlayStats(legs); const txt = legs.map(p => `${p.player} ${p.pick} (${p.odds}, ${p.book})`).join("\n") + `\nCombined ${toAmer(s.d)}`; try { navigator.clipboard.writeText(txt); $("copyp").textContent = "Copied"; setTimeout(() => $("copyp").textContent = "Copy slip", 1200); } catch(e) {} };
+renderTray();
 if (RESULTS){
   $("results").innerHTML = `<section class="results" aria-label="Season results">
     <div>Record<b>${RESULTS.wins}-${RESULTS.losses}</b></div>
