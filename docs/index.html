@@ -74,7 +74,7 @@ details{margin-top:4px}
 <body>
 <header>
   <h1>Week 5 props</h1>
-  <p id="count">Updated Thu Oct 08, 05:09 AM.</p>
+  <p id="count">Updated Thu Oct 08, 05:14 AM.</p>
 </header>
 <nav class="pages"><a class="on" href="index.html">Props</a><a href="games.html">Games</a></nav>
 <div class="chips" id="chips" role="group" aria-label="Filter by market"></div>
@@ -116,7 +116,7 @@ function render(){
   let rows = PLAYS.filter(p => (filter==="All" || p.market===filter) && p.model >= minM && p.ev >= minE
     && (gap || !p.gap) && (!q || (p.player + " " + p.team + " " + p.opp).toLowerCase().includes(q)));
   rows.sort((a, b) => sort==="model" ? b.model - a.model : sort==="kick" ? new Date(a.kick) - new Date(b.kick) : b.ev - a.ev);
-  $("count").textContent = `${rows.length} of ${PLAYS.length} priced props match. Updated Thu Oct 08, 05:09 AM.`;
+  $("count").textContent = `${rows.length} of ${PLAYS.length} priced props match. Updated Thu Oct 08, 05:14 AM.`;
   const list = $("list");
   if (!rows.length){
     list.innerHTML = `<div class="empty"><b>Nothing matches.</b>Lower the model % or edge filter, or clear the search.</div>`;
