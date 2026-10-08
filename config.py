@@ -15,21 +15,23 @@ REGIONS = "us"               # each region multiplies credit cost
 BOOKMAKERS = ""              # e.g. "draftkings,fanduel,betmgm,caesars" (overrides REGIONS if set)
 CACHE_DIR = "cache"
 
-# Market key -> how to model it. Five markets are commented out to fit the free Odds API plan
-# (500 credits/month; a run with 4 markets costs about 90). Uncomment them on a paid plan.
+# Market key -> how to model it. Six markets are on; the rest are off to fit the free Odds API plan
+# (500 credits/month; a run costs about 15 credits per market). Turn more on by removing the "# ".
 #   stat: nflverse column  | vol: opportunity column (None = the stat IS volume)
 #   k: shrinkage strength for efficiency (in units of vol) | script: pass/rush/none
 #   alpha: how strongly the team implied total moves the mean (1.0 = proportional)
 MARKETS = {
-    "player_pass_yds":         dict(stat="passing_yards",   vol="attempts", pos=["QB"],             kind="yards", k=150, script="pass", alpha=0.6),
-    # "player_pass_attempts":    dict(stat="attempts",        vol=None,       pos=["QB"],             kind="count", k=0,   script="pass", alpha=0.3),
-    # "player_pass_completions": dict(stat="completions",     vol="attempts", pos=["QB"],             kind="count", k=150, script="pass", alpha=0.4),
-    # "player_pass_tds":         dict(stat="passing_tds",     vol="attempts", pos=["QB"],             kind="td",    k=200, script="pass", alpha=1.0),
-    "player_rush_yds":         dict(stat="rushing_yards",   vol="carries",  pos=["RB", "QB"],       kind="yards", k=60,  script="rush", alpha=0.0),
-    # "player_rush_attempts":    dict(stat="carries",         vol=None,       pos=["RB"],             kind="count", k=0,   script="rush", alpha=0.0),
-    "player_reception_yds":    dict(stat="receiving_yards", vol="targets",  pos=["WR", "TE", "RB"], kind="yards", k=30,  script="pass", alpha=0.6),
-    "player_receptions":       dict(stat="receptions",      vol="targets",  pos=["WR", "TE", "RB"], kind="count", k=30,  script="pass", alpha=0.4),
-    # "player_anytime_td":       dict(stat="any_td",          vol="opps",     pos=["RB", "WR", "TE"], kind="td",    k=60,  script="none", alpha=1.0),
+    "player_pass_yds":            dict(stat="passing_yards",         vol="attempts", pos=["QB"],             kind="yards", k=150, script="pass", alpha=0.6),
+    "player_pass_tds":            dict(stat="passing_tds",           vol="attempts", pos=["QB"],             kind="td",    k=200, script="pass", alpha=1.0),
+    "player_rush_yds":            dict(stat="rushing_yards",         vol="carries",  pos=["RB", "QB"],       kind="yards", k=60,  script="rush", alpha=0.0),
+    "player_reception_yds":       dict(stat="receiving_yards",       vol="targets",  pos=["WR", "TE", "RB"], kind="yards", k=30,  script="pass", alpha=0.6),
+    "player_receptions":          dict(stat="receptions",            vol="targets",  pos=["WR", "TE", "RB"], kind="count", k=30,  script="pass", alpha=0.4),
+    "player_anytime_td":          dict(stat="any_td",                vol="opps",     pos=["RB", "WR", "TE"], kind="td",    k=60,  script="none", alpha=1.0),
+    # "player_pass_attempts":       dict(stat="attempts",              vol=None,       pos=["QB"],             kind="count", k=0,   script="pass", alpha=0.3),
+    # "player_pass_completions":    dict(stat="completions",           vol="attempts", pos=["QB"],             kind="count", k=150, script="pass", alpha=0.4),
+    # "player_pass_interceptions":  dict(stat="passing_interceptions", vol="attempts", pos=["QB"],             kind="td",    k=300, script="pass", alpha=0.0),
+    # "player_rush_attempts":       dict(stat="carries",               vol=None,       pos=["RB"],             kind="count", k=0,   script="rush", alpha=0.0),
+    # "player_rush_reception_yds":  dict(stat="rush_rec_yards",        vol="opps",     pos=["RB", "WR", "TE"], kind="yards", k=40,  script="none", alpha=0.4),
 }
 
 # ---- Model knobs (tuned on a 2025 walk-forward backtest; re-run backtest.py after changing) ----

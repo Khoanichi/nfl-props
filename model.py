@@ -16,8 +16,7 @@ def load_data(season=C.SEASON, prior=C.PRIOR_SEASONS):
     ps = nfl.load_player_stats(seasons).to_pandas()
     ps = ps[(ps.season_type == "REG") & ps.player_id.notna()].copy()
     ps["position"] = ps["position"].replace(POS_MAP)
-    ps["any_td"] = ps["rushing_tds"].fillna(0) + ps["receiving_tds"].fillna(0)
-    ps["opps"] = ps["carries"].fillna(0) + ps["targets"].fillna(0)
+    ps = add_derived(ps)
     ps["t"] = ps["season"] * 100 + ps["week"]
     sched = nfl.load_schedules(seasons).to_pandas()
     sched = sched[sched.game_type == "REG"]
@@ -26,6 +25,14 @@ def load_data(season=C.SEASON, prior=C.PRIOR_SEASONS):
     except Exception:
         inj = pd.DataFrame(columns=["gsis_id", "week", "report_status", "practice_status"])
     return ps, sched, inj
+
+
+def add_derived(ps):
+    """Stat columns that props are written on but nflverse doesn't ship directly."""
+    ps["any_td"] = ps["rushing_tds"].fillna(0) + ps["receiving_tds"].fillna(0)
+    ps["opps"] = ps["carries"].fillna(0) + ps["targets"].fillna(0)
+    ps["rush_rec_yards"] = ps["rushing_yards"].fillna(0) + ps["receiving_yards"].fillna(0)
+    return ps
 
 
 def norm_name(s):

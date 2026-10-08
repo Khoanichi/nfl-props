@@ -8,10 +8,11 @@ import pandas as pd
 import nflreadpy as nfl
 
 import config as C
+from model import add_derived
 
 log = pd.read_csv(C.BET_LOG)
 stats = nfl.load_player_stats(sorted(log.season.unique().tolist())).to_pandas()
-stats["any_td"] = stats["rushing_tds"].fillna(0) + stats["receiving_tds"].fillna(0)
+stats = add_derived(stats)
 
 rows = []
 for r in log.itertuples():

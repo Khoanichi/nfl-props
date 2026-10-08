@@ -19,6 +19,7 @@ MARKET_LABEL = {
     "player_pass_yds": "Pass yds", "player_pass_attempts": "Pass att", "player_pass_completions": "Completions",
     "player_pass_tds": "Pass TD", "player_rush_yds": "Rush yds", "player_rush_attempts": "Carries",
     "player_reception_yds": "Rec yds", "player_receptions": "Receptions", "player_anytime_td": "Anytime TD",
+    "player_pass_interceptions": "Interceptions", "player_rush_reception_yds": "Rush+Rec yds",
 }
 
 
@@ -33,13 +34,14 @@ def load_latest(path=None):
 
 
 def plays_json(df):
-    show = df[(df.ev >= C.MIN_EV) & ~df.report_status.isin(["Out", "Doubtful"])
-              & (df.raw_edge.abs() <= C.MAX_RAW_EDGE)]
+    """Every priced prop (one row per player, market and side), so the page can filter it any way.
+    Big model-vs-market gaps are kept but marked, since they usually mean the market knows something."""
+    show = df[~df.report_status.isin(["Out", "Doubtful"])]
     show = show.sort_values("ev", ascending=False).drop_duplicates(["player", "market", "side"]).copy()
     show["flags"] = show["flags"].fillna("").str.strip()
     show["injury"] = show.injury.fillna("")
     rows = []
-    for r in show.sort_values("ev", ascending=False).itertuples():
+    for r in show.itertuples():
         line = "" if r.market == "player_anytime_td" else f"{r.line:g} "
         side = "" if r.market == "player_anytime_td" else r.side
         rows.append(dict(
@@ -48,7 +50,7 @@ def plays_json(df):
             market=MARKET_LABEL.get(r.market, r.market), odds=to_american(r.price), book=r.book.replace("_", " "),
             proj=round(float(r.mean), 1), model=round(100 * r.p_model), market_p=round(100 * r.p_market),
             ev=round(100 * r.ev, 1), stake=round(100 * r.stake_pct, 2), flags=r.flags, injury=r.injury,
-            kick=str(r.commence),
+            kick=str(r.commence), gap=bool(abs(r.raw_edge) > C.MAX_RAW_EDGE),
         ))
     return rows
 
@@ -90,6 +92,13 @@ header p{margin:6px 0 0;color:#c9d6cd;font-size:15px}
 .chip{flex:0 0 auto;border:1.5px solid #8fb0a0;color:var(--paper);background:transparent;border-radius:999px;padding:8px 14px;font:600 15px var(--body);min-height:40px}
 .chip[aria-pressed=true]{background:var(--paper);color:var(--ink);border-color:var(--paper)}
 .chip:focus-visible,.card:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.controls{max-width:640px;margin:0 auto 14px;padding:0 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 12px;color:var(--paper)}
+.controls input[type=search]{grid-column:1 / -1;border:1.5px solid #8fb0a0;background:transparent;color:var(--paper);border-radius:8px;padding:10px 12px;font:16px var(--body);min-height:44px}
+.controls input[type=search]::placeholder{color:#9db7aa}
+.controls label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:#c9d6cd;min-width:0}
+.controls select{border:1.5px solid #8fb0a0;background:#16342a;color:var(--paper);border-radius:8px;padding:9px 8px;font:600 16px var(--body);min-height:44px;width:100%}
+.controls .check{grid-column:1 / -1;flex-direction:row;align-items:center;gap:10px;font-size:15px;color:var(--paper)}
+.controls .check input{width:22px;height:22px;accent-color:var(--gold)}
 main{max-width:640px;margin:0 auto;padding:0 12px 40px}
 .card{background:var(--paper);border-radius:6px;margin:0 0 14px;position:relative;box-shadow:0 2px 0 var(--paper-edge)}
 .top{padding:14px 16px 12px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
@@ -122,9 +131,16 @@ details{margin-top:4px}
 <body>
 <header>
   <h1>Week __WEEK__ props</h1>
-  <p>__COUNT__ plays at +__MINEV__% or better. Updated __UPDATED__.</p>
+  <p id="count">Updated __UPDATED__.</p>
 </header>
 <div class="chips" id="chips" role="group" aria-label="Filter by market"></div>
+<div class="controls">
+  <input id="q" type="search" placeholder="Player or team" aria-label="Search player or team" autocomplete="off">
+  <label>Model win %<select id="minModel"><option value="0" selected>Any</option><option value="55">55%+</option><option value="60">60%+</option><option value="65">65%+</option><option value="70">70%+</option></select></label>
+  <label>Edge<select id="minEv"><option value="-100">Any</option><option value="0">0%+</option><option value="3" selected>3%+</option><option value="5">5%+</option><option value="8">8%+</option></select></label>
+  <label>Sort<select id="sort"><option value="ev">Edge</option><option value="model">Model %</option><option value="kick">Kickoff</option></select></label>
+  <label class="check"><input id="showGap" type="checkbox">Include "check news" plays</label>
+</div>
 <main>
   <div id="results"></div>
   <div id="list"></div>
@@ -133,27 +149,29 @@ details{margin-top:4px}
 <script>
 const PLAYS = __PLAYS__;
 const RESULTS = __RESULTS__;
-let filter = "All", cleanOnly = false;
+let filter = "All";
+const $ = id => document.getElementById(id);
 const when = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleString([], {weekday:"short", hour:"numeric", minute:"2-digit"}); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function chips(){
   const mk = ["All", ...new Set(PLAYS.map(p => p.market))];
-  const box = document.getElementById("chips");
-  box.innerHTML = mk.map(m => `<button class="chip" data-m="${esc(m)}" aria-pressed="${m===filter}">${esc(m)}</button>`).join("")
-    + `<button class="chip" data-clean="1" aria-pressed="${cleanOnly}">No flags</button>`;
-  box.querySelectorAll(".chip").forEach(b => b.onclick = () => {
-    if (b.dataset.clean) cleanOnly = !cleanOnly; else filter = b.dataset.m;
-    chips(); render();
-  });
+  const box = $("chips");
+  box.innerHTML = mk.map(m => `<button class="chip" data-m="${esc(m)}" aria-pressed="${m===filter}">${esc(m)}</button>`).join("");
+  box.querySelectorAll(".chip").forEach(b => b.onclick = () => { filter = b.dataset.m; chips(); render(); });
 }
 function render(){
-  const rows = PLAYS.filter(p => (filter==="All" || p.market===filter) && (!cleanOnly || !p.flags));
-  const list = document.getElementById("list");
+  const q = $("q").value.trim().toLowerCase(), minM = +$("minModel").value, minE = +$("minEv").value,
+        sort = $("sort").value, gap = $("showGap").checked;
+  let rows = PLAYS.filter(p => (filter==="All" || p.market===filter) && p.model >= minM && p.ev >= minE
+    && (gap || !p.gap) && (!q || (p.player + " " + p.team + " " + p.opp).toLowerCase().includes(q)));
+  rows.sort((a, b) => sort==="model" ? b.model - a.model : sort==="kick" ? new Date(a.kick) - new Date(b.kick) : b.ev - a.ev);
+  $("count").textContent = `${rows.length} of ${PLAYS.length} priced props match. Updated __UPDATED__.`;
+  const list = $("list");
   if (!rows.length){
-    list.innerHTML = `<div class="empty"><b>Nothing to bet here.</b>No edge means no bet. Check back after more props post, or loosen the filter.</div>`;
+    list.innerHTML = `<div class="empty"><b>Nothing matches.</b>Lower the model % or edge filter, or clear the search.</div>`;
     return;
   }
-  list.innerHTML = rows.map(p => `
+  list.innerHTML = rows.slice(0, 150).map(p => `
   <article class="card" tabindex="0">
     <div class="top">
       <div class="who">
@@ -168,12 +186,13 @@ function render(){
       <div>Projection<b>${p.proj}</b></div>
       <div>Model win %<b>${p.model}</b></div>
       <div>Market win %<b>${p.market_p}</b></div>
-      <div>Edge<b class="ev">+${p.ev}%</b></div>
+      <div>Edge<b class="ev">${p.ev > 0 ? "+" : ""}${p.ev}%</b></div>
     </div>
     ${p.flags ? `<div class="flag ${/BIG-GAP|Q-tag/.test(p.flags) ? "" : "soft"}">${esc(p.flags.replace("BIG-GAP:check-news","Model and market disagree: check news").replace("Q-tag","Questionable").replace("small-sample","Few games of data").replace("one-sided-mkt","Only one side priced"))} &nbsp; Stake ${p.stake}%</div>`
              : `<div class="flag soft">Stake ${p.stake}% of bankroll</div>`}
-  </article>`).join("");
+  </article>`).join("") + (rows.length > 150 ? `<div class="empty">Showing the top 150. Tighten the filters to see the rest.</div>` : "");
 }
+["q", "minModel", "minEv", "sort", "showGap"].forEach(id => $(id).addEventListener("input", render));
 if (RESULTS){
   document.getElementById("results").innerHTML = `<section class="results" aria-label="Season results">
     <div>Record<b>${RESULTS.wins}-${RESULTS.losses}</b></div>
@@ -193,12 +212,12 @@ def main():
     df, week, updated = load_latest(sys.argv[1] if len(sys.argv) > 1 else None)
     plays = plays_json(df)
     html = (HTML.replace("__WEEK__", str(week)).replace("__COUNT__", str(len(plays)))
-            .replace("__MINEV__", f"{100 * C.MIN_EV:g}").replace("__UPDATED__", updated.strftime("%a %b %d, %I:%M %p"))
+            .replace("__UPDATED__", updated.strftime("%a %b %d, %I:%M %p"))
             .replace("__PLAYS__", json.dumps(plays)).replace("__RESULTS__", json.dumps(results_json())))
     os.makedirs("docs", exist_ok=True)
     with open("docs/index.html", "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"Wrote docs/index.html with {len(plays)} plays")
+    print(f"Wrote docs/index.html with {len(plays)} priced props")
 
 
 if __name__ == "__main__":

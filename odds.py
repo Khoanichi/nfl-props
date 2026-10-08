@@ -30,8 +30,10 @@ def fetch_props(markets=None, days_ahead=7, use_cache=None):
     events = [e for e in events
               if datetime.fromisoformat(e["commence_time"].replace("Z", "+00:00")) <= cutoff]
 
-    q = dict(params, markets=",".join(markets), oddsFormat="decimal")
+    q = dict(params, oddsFormat="decimal")
     q.update({"bookmakers": C.BOOKMAKERS} if C.BOOKMAKERS else {"regions": C.REGIONS})
+    markets = available_markets(events, q, markets)
+    q["markets"] = ",".join(markets)
     data = []
     for e in events:
         r = requests.get(f"{BASE}/events/{e['id']}/odds", params=q, timeout=30)
@@ -48,6 +50,24 @@ def fetch_props(markets=None, days_ahead=7, use_cache=None):
         json.dump(data, f)
     print(f"Saved to {path} (re-run free with --cache {path})")
     return data
+
+
+def available_markets(events, q, wanted):
+    """Ask the API which prop markets exist for one game; drop any we asked for that it doesn't know.
+    One unknown market key would otherwise make every request fail."""
+    if not events:
+        return wanted
+    try:
+        r = requests.get(f"{BASE}/events/{events[0]['id']}/markets", params=q, timeout=30)
+        offered = {m["key"] for bk in r.json().get("bookmakers", []) for m in bk.get("markets", [])}
+    except Exception:
+        return wanted
+    if not offered:
+        return wanted
+    missing = [m for m in wanted if m not in offered]
+    if missing:
+        print(f"  not offered by the books right now, skipping: {', '.join(missing)}")
+    return [m for m in wanted if m in offered] or wanted
 
 
 def flatten(data):

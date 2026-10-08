@@ -32,8 +32,9 @@ py find_value.py --week 5 --log            # Thu/Sat after props post (uses API 
 py find_value.py --week 5 --cache cache\odds_XXXX.json   # re-run free on saved odds
 py grade.py                                # Tuesday, after the week finishes
 ```
-Each run costs roughly (markets x regions) credits per game. Trim `MARKETS` in `config.py` or set
-`BOOKMAKERS` to the books you actually use to save credits.
+Each run costs about 15 credits per market turned on in `config.py` (6 on = about 90). The free plan is
+500 a month, enough for one run a week with 6 markets. Turn on the other 5 markets if you move to a paid plan.
+A run reuses odds pulled in the last 12 hours for free; add `--fresh` to force a new pull.
 
 ## Use it from your phone
 `report.py` turns each run into a phone-friendly page (`docs/index.html`). Two ways to get it on your phone:
@@ -42,12 +43,18 @@ Each run costs roughly (markets x regions) credits per game. Trim `MARKETS` in `
 1. Create a repo on github.com, upload these files.
 2. Repo Settings > Secrets and variables > Actions > New secret: `ODDS_API_KEY`.
 3. Repo Settings > Pages > Source: Deploy from branch, branch `main`, folder `/docs`.
-4. The included workflow (`.github/workflows/props.yml`) runs Thursday, Saturday and Sunday morning,
-   grades on Tuesday, and republishes the page. Bookmark `https://<you>.github.io/<repo>/` on your phone.
+4. The included workflow (`.github/workflows/props.yml`) runs Saturday morning, grades on Tuesday,
+   and republishes the page. Bookmark `https://<you>.github.io/<repo>/` on your phone.
    You can also trigger a run anytime from the GitHub mobile app (Actions tab > Weekly props > Run workflow).
 
 **Manual:** run `py find_value.py --week auto --log` then `py report.py` on your PC and open
 `docs\index.html` from Google Drive or email on your phone.
+
+## The phone page
+Every priced prop is on the page, one card per player and side. Filters at the top: market chips, a
+player/team search, minimum model win %, minimum edge, sort by edge, model % or kickoff, and a box to
+include the "check news" plays (model and market disagree by 15%+; usually a role change the stats
+haven't caught up with). Defaults show plays at +3% edge or better.
 
 ## Reading the output
 | column | meaning |
