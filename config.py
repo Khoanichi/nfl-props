@@ -41,6 +41,8 @@ SCRIPT_RUSH_PER_PT = 0.006   # ...and adds 0.6% rush volume
 ADJ_STRENGTH = 0.75          # dampens matchup/game-script multipliers (full strength was overconfident)
 PROJ_ERR = 0.25              # extra uncertainty in our own mean (25% of the projection)
 DIST_PRIOR_GAMES = 8         # shrink each player's volatility toward his position's
+ROLE_MIN_GAMES = 2           # after this many games this season, last season is scaled by (this-season volume / last-season volume)
+ROLE_FLOOR = 0.15            # ...but never below this share (a quiet start is not proof the role is gone)
 
 # ---- Value / staking ----
 MODEL_WEIGHT = 0.35          # final prob blends model and no-vig market in odds space, 35% model. The market is sharp; respect it.

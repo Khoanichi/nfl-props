@@ -81,13 +81,21 @@ def _weights(hist, season):
     return hist
 
 
-def player_baselines(hist, market):
-    """Weighted volume x shrunk efficiency, plus within-player volatility."""
+def player_baselines(hist, market, season=None):
+    """Weighted volume x shrunk efficiency, plus within-player volatility.
+    Role-change dampener: if a player's volume this season is far below last season's, last season's
+    games are weighted down in proportion (a 2-target decoy no longer inherits a 10-target past)."""
     m = C.MARKETS[market]
     stat, vol = m["stat"], m["vol"]
     h = hist[hist.position.isin(m["pos"])].copy()
     h["x"] = h[stat].fillna(0)
     h["v"] = h[vol].fillna(0) if vol else h["x"]
+    if season is not None:
+        cur = h[h.season == season].groupby("player_id").v.agg(["mean", "size"])
+        prior = h[h.season < season].groupby("player_id").v.mean()
+        ratio = (cur["mean"] / prior).where(cur["size"] >= C.ROLE_MIN_GAMES).clip(C.ROLE_FLOOR, 1.0)
+        f = h.player_id.map(ratio).fillna(1.0)
+        h["w"] = np.where(h.season < season, h.w * f, h.w)
     h["wx"], h["wv"] = h.w * h.x, h.w * h.v
 
     g = h.groupby("player_id")
@@ -129,7 +137,7 @@ def build_projections(ps, sched, season, week, team_of=None):
     ctx, avg_itt = game_context(sched, season, week)
     out = []
     for market, m in C.MARKETS.items():
-        b = player_baselines(hist, market)
+        b = player_baselines(hist, market, season)
         if b.empty:
             continue
         b = b.join(team_of.rename("team"), how="inner").reset_index()

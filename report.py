@@ -159,6 +159,7 @@ main{max-width:640px;margin:0 auto;padding:12px 12px 60px}
 .log .g i{display:block;font-style:normal;font-size:10px;color:var(--ink-soft)}
 .log .g.hit{background:#dcebdd;border-color:#b9d4bc}
 .log .g.miss{background:#f1dcd8;border-color:#e3bdb6}
+.log .g.old{opacity:.5;border-style:dashed}
 .flag{margin:0 16px 12px;font-size:14px;color:var(--chip);font-weight:600}
 .flag.soft{color:var(--ink-soft);font-weight:400}
 .empty{background:var(--paper);border-radius:6px;padding:22px 18px;font-size:17px}
@@ -331,13 +332,17 @@ function clearOne(k){
 }
 function gamelog(p){
   const h = hits(p); if (!h) return "";
+  const cur = p.recent.map((g, i) => [g, h.each[i]]).filter(([g]) => g.cur !== false);
+  const curN = cur.filter(([, ok]) => ok).length, curOf = cur.filter(([, ok]) => ok !== null).length;
   const box = (g, ok) => {
     let v = p.kind === "game" && p.mkey !== "game_total" ? (g.v > 0 ? "+" : "") + g.v : (g.v % 1 ? g.v.toFixed(1) : g.v);
     let sub = p.mkey === "game_spread" && g.line != null ? `<i>line ${g.line > 0 ? "+" : ""}${g.line}</i>` : p.mkey === "game_total" && g.line != null ? `<i>o/u ${g.line}</i>` : "";
-    return `<div class="g ${ok === null ? "" : ok ? "hit" : "miss"}"><small>${esc(g.w)} ${esc(g.opp)}</small><b>${v}</b>${sub}</div>`;
+    const old = g.cur === false ? " old" : "";
+    return `<div class="g ${ok === null ? "" : ok ? "hit" : "miss"}${old}"><small>${esc(g.w)} ${esc(g.opp)}</small><b>${v}</b>${sub}</div>`;
   };
   const what = p.mkey === "game_spread" ? "ATS" : p.mkey === "game_moneyline" ? "wins" : "hit";
-  return `<div class="log"><div class="lbl">Last ${p.recent.length}<br>${h.n} of ${h.of} ${what}</div>${p.recent.map((g, i) => box(g, h.each[i])).join("")}</div>`;
+  const label = curOf ? `This season<br>${curN} of ${curOf} ${what}` : `Last season<br>${h.n} of ${h.of} ${what}`;
+  return `<div class="log"><div class="lbl">${label}</div>${p.recent.map((g, i) => box(g, h.each[i])).join("")}</div>`;
 }
 function card(p){
   const game = p.kind === "game";
