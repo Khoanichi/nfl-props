@@ -150,16 +150,16 @@ main{max-width:640px;margin:0 auto;padding:12px 12px 60px}
 .nums div{font-size:13px;color:var(--ink-soft)}
 .nums b{display:block;font:600 19px var(--display);color:var(--ink)}
 .nums b.ev{color:var(--ok)}
-.log{display:flex;gap:6px;padding:0 16px 12px;overflow-x:auto;scrollbar-width:none;align-items:stretch}
-.log::-webkit-scrollbar{display:none}
-.log .lbl{flex:0 0 auto;align-self:center;font-size:12px;color:var(--ink-soft);width:52px;line-height:1.2}
-.log .g{flex:0 0 auto;min-width:54px;border-radius:5px;padding:5px 6px 4px;text-align:center;background:#ebe4d2;border:1px solid #ddd3bb}
-.log .g small{display:block;font-size:10.5px;color:var(--ink-soft);white-space:nowrap}
-.log .g b{font:600 17px var(--display);color:var(--ink)}
-.log .g i{display:block;font-style:normal;font-size:10px;color:var(--ink-soft)}
-.log .g.hit{background:#dcebdd;border-color:#b9d4bc}
-.log .g.miss{background:#f1dcd8;border-color:#e3bdb6}
-.log .g.old{opacity:.5;border-style:dashed}
+.log2{display:flex;gap:10px;padding:2px 16px 12px;align-items:stretch}
+.log2 .lbl{flex:0 0 auto;align-self:center;font-size:12px;color:var(--ink-soft);width:58px;line-height:1.2}
+.log2 .chart{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.log2 svg{display:block;width:100%;height:56px;background:#ebe4d2;border-radius:5px}
+.nums2{display:flex}
+.nums2 .n{flex:1;text-align:center;line-height:1.1}
+.nums2 .n b{display:block;font:600 13px var(--display);color:var(--ink)}
+.nums2 .n small{display:block;font-size:9.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nums2 .n.old{opacity:.5}
+.log2 .cap{font-size:10.5px;color:var(--ink-soft)}
 .flag{margin:0 16px 12px;font-size:14px;color:var(--chip);font-weight:600}
 .flag.soft{color:var(--ink-soft);font-weight:400}
 .empty{background:var(--paper);border-radius:6px;padding:22px 18px;font-size:17px}
@@ -334,15 +334,30 @@ function gamelog(p){
   const h = hits(p); if (!h) return "";
   const cur = p.recent.map((g, i) => [g, h.each[i]]).filter(([g]) => g.cur !== false);
   const curN = cur.filter(([, ok]) => ok).length, curOf = cur.filter(([, ok]) => ok !== null).length;
-  const box = (g, ok) => {
-    let v = p.kind === "game" && p.mkey !== "game_total" ? (g.v > 0 ? "+" : "") + g.v : (g.v % 1 ? g.v.toFixed(1) : g.v);
-    let sub = p.mkey === "game_spread" && g.line != null ? `<i>line ${g.line > 0 ? "+" : ""}${g.line}</i>` : p.mkey === "game_total" && g.line != null ? `<i>o/u ${g.line}</i>` : "";
-    const old = g.cur === false ? " old" : "";
-    return `<div class="g ${ok === null ? "" : ok ? "hit" : "miss"}${old}"><small>${esc(g.w)} ${esc(g.opp)}</small><b>${v}</b>${sub}</div>`;
-  };
   const what = p.mkey === "game_spread" ? "ATS" : p.mkey === "game_moneyline" ? "wins" : "hit";
   const label = curOf ? `This season<br>${curN} of ${curOf} ${what}` : `Last season<br>${h.n} of ${h.of} ${what}`;
-  return `<div class="log"><div class="lbl">${label}</div>${p.recent.map((g, i) => box(g, h.each[i])).join("")}</div>`;
+  // value per game and the number it is measured against
+  const spread = p.mkey === "game_spread", ml = p.mkey === "game_moneyline", tot = p.mkey === "game_total";
+  const val = g => spread ? g.v + (g.line ?? 0) : g.v;            // spread: cover margin
+  const ref = g => spread || ml ? 0 : tot ? (g.line ?? p.line_num) : p.line_num;
+  const vals = p.recent.map(val), refs = p.recent.map(ref);
+  const signed = spread || ml;
+  const top = Math.max(1, ...vals.map(Math.abs), ...refs.map(Math.abs)) * 1.15;
+  const H = 56, W = 100 / p.recent.length;
+  const y = v => signed ? H / 2 - (v / top) * (H / 2) : H - (v / top) * H;
+  const refLine = signed ? `<line x1="0" x2="100" y1="${H / 2}" y2="${H / 2}" stroke="#6e6a5e" stroke-width="1" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>`
+    : `<line x1="0" x2="100" y1="${y(p.line_num).toFixed(1)}" y2="${y(p.line_num).toFixed(1)}" stroke="#6e6a5e" stroke-width="1" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>`;
+  const bars = p.recent.map((g, i) => {
+    const v = vals[i], ok = h.each[i], old = g.cur === false;
+    const fill = ok === null ? "#cfc6ad" : ok ? "#2e7d4f" : "#c8372d";
+    const x = i * W + W * 0.18, bw = W * 0.64;
+    const y0 = signed ? H / 2 : H, y1 = y(v);
+    const by = Math.min(y0, y1), bh = Math.max(1, Math.abs(y0 - y1));
+    return `<rect x="${x.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="1" fill="${fill}" opacity="${old ? .45 : .9}"/>`;
+  }).join("");
+  const nums = p.recent.map((g, i) => `<div class="n ${g.cur === false ? "old" : ""}"><b>${spread || ml ? (g.v > 0 ? "+" : "") + g.v : (g.v % 1 ? g.v.toFixed(1) : g.v)}</b><small>${esc(g.w)} ${esc(g.opp)}</small></div>`).join("");
+  const lineTxt = tot ? "dashed line = that game's total" : spread ? "bars = margin vs the spread" : ml ? "bars = margin of victory" : `dashed line = ${p.line_num}`;
+  return `<div class="log2"><div class="lbl">${label}</div><div class="chart"><svg viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-label="Last games vs the line">${refLine}${bars}</svg><div class="nums2">${nums}</div><div class="cap">${lineTxt}</div></div></div>`;
 }
 function card(p){
   const game = p.kind === "game";
