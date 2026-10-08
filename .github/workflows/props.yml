@@ -5,7 +5,7 @@ on:
   schedule:                   # UTC. 16:00 UTC = 9 AM Pacific
     - cron: "0 16 * * 6"      # Saturday 9 AM Pacific: props posted, injury designations final
     - cron: "0 16 * * 2"      # Tuesday: grade last week (costs no API credits)
-    # Free Odds API plan = 500 credits/month, about 90 per run with 6 markets. One scheduled run a
+    # Free Odds API plan = 500 credits/month, about 130 per run with 6 markets. One scheduled run a
     # week keeps you under it. Add "0 15 * * 0" (Sunday 8 AM Pacific) back if you move to a paid plan.
 
 permissions:
@@ -33,6 +33,6 @@ jobs:
         run: |
           git config user.name "props-bot"
           git config user.email "props-bot@users.noreply.github.com"
-          git add docs bet_log.csv graded.csv output cache || true
+          git add -A
           git commit -m "props update $(date -u +%F)" || echo "nothing new"
           git push
