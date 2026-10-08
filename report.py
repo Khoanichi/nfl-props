@@ -33,7 +33,9 @@ def load_latest(path=None):
 
 
 def plays_json(df):
-    show = df[(df.ev >= C.MIN_EV) & ~df.report_status.isin(["Out", "Doubtful"])].copy()
+    show = df[(df.ev >= C.MIN_EV) & ~df.report_status.isin(["Out", "Doubtful"])
+              & (df.raw_edge.abs() <= C.MAX_RAW_EDGE)]
+    show = show.sort_values("ev", ascending=False).drop_duplicates(["player", "market", "side"]).copy()
     show["flags"] = show["flags"].fillna("").str.strip()
     show["injury"] = show.injury.fillna("")
     rows = []

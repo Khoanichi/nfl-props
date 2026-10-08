@@ -122,7 +122,11 @@ def main():
     out_path = f"output/props_wk{a.week}_{datetime.now():%Y%m%d_%H%M}.csv"
     df.to_csv(out_path, index=False)
 
-    show = df if a.all else df[(df.ev >= C.MIN_EV) & ~df.report_status.isin(BAD_STATUS)]
+    # the shown list drops BIG-GAP rows: when the model and market disagree that much, the market
+    # almost always knows something (new starter, injury), and keeps one line per player and side
+    show = df if a.all else df[(df.ev >= C.MIN_EV) & ~df.report_status.isin(BAD_STATUS)
+                               & (df.raw_edge.abs() <= C.MAX_RAW_EDGE)]
+    show = show.drop_duplicates(["player", "market", "side"])
     view = show.assign(
         pick=show.player + " " + show.side + " " + show.line.astype(str) + " " + show.market.str.replace("player_", ""),
         odds=show.price.map(to_american),
