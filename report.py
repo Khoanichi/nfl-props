@@ -51,6 +51,7 @@ def plays_json(df):
             proj=round(float(r.mean), 1), model=round(100 * r.p_model), market_p=round(100 * r.p_market),
             ev=round(100 * r.ev, 1), stake=round(100 * r.stake_pct, 2), flags=r.flags, injury=r.injury,
             kick=str(r.commence), gap=bool(abs(r.raw_edge) > C.MAX_RAW_EDGE),
+            line_num=float(r.line), side=r.side, recent=json.loads(r.recent) if isinstance(r.recent, str) else [],
         ))
     return rows
 
@@ -116,6 +117,14 @@ main{max-width:640px;margin:0 auto;padding:0 12px 40px}
 .nums div{font-size:13px;color:var(--ink-soft)}
 .nums b{display:block;font:600 19px var(--display);color:var(--ink)}
 .nums b.ev{color:var(--ok)}
+.log{display:flex;gap:6px;padding:0 16px 12px;overflow-x:auto;scrollbar-width:none;align-items:stretch}
+.log::-webkit-scrollbar{display:none}
+.log .lbl{flex:0 0 auto;align-self:center;font-size:12px;color:var(--ink-soft);width:52px;line-height:1.2}
+.log .g{flex:0 0 auto;min-width:52px;border-radius:5px;padding:5px 6px 4px;text-align:center;background:#ebe4d2;border:1px solid #ddd3bb}
+.log .g small{display:block;font-size:10.5px;color:var(--ink-soft);white-space:nowrap}
+.log .g b{font:600 17px var(--display);color:var(--ink)}
+.log .g.hit{background:#dcebdd;border-color:#b9d4bc}
+.log .g.miss{background:#f1dcd8;border-color:#e3bdb6}
 .flag{margin:0 16px 12px;font-size:14px;color:var(--chip);font-weight:600}
 .flag.soft{color:var(--ink-soft);font-weight:400}
 .empty{background:var(--paper);border-radius:6px;padding:22px 18px;font-size:17px}
@@ -159,6 +168,13 @@ function chips(){
   box.innerHTML = mk.map(m => `<button class="chip" data-m="${esc(m)}" aria-pressed="${m===filter}">${esc(m)}</button>`).join("");
   box.querySelectorAll(".chip").forEach(b => b.onclick = () => { filter = b.dataset.m; chips(); render(); });
 }
+function gamelog(p){
+  if (!p.recent || !p.recent.length) return "";
+  const hit = v => p.side === "Over" ? v > p.line_num : v < p.line_num;
+  const n = p.recent.filter(g => hit(g.v)).length;
+  return `<div class="log"><div class="lbl">Last ${p.recent.length}<br>${n} of ${p.recent.length} hit</div>` +
+    p.recent.map(g => `<div class="g ${g.v === p.line_num ? "" : hit(g.v) ? "hit" : "miss"}"><small>${esc(g.w)} ${esc(g.opp)}</small><b>${g.v % 1 ? g.v.toFixed(1) : g.v}</b></div>`).join("") + `</div>`;
+}
 function render(){
   const q = $("q").value.trim().toLowerCase(), minM = +$("minModel").value, minE = +$("minEv").value,
         sort = $("sort").value, gap = $("showGap").checked;
@@ -188,6 +204,7 @@ function render(){
       <div>Market win %<b>${p.market_p}</b></div>
       <div>Edge<b class="ev">${p.ev > 0 ? "+" : ""}${p.ev}%</b></div>
     </div>
+    ${gamelog(p)}
     ${p.flags ? `<div class="flag ${/BIG-GAP|Q-tag/.test(p.flags) ? "" : "soft"}">${esc(p.flags.replace("BIG-GAP:check-news","Model and market disagree: check news").replace("Q-tag","Questionable").replace("small-sample","Few games of data").replace("one-sided-mkt","Only one side priced"))} &nbsp; Stake ${p.stake}%</div>`
              : `<div class="flag soft">Stake ${p.stake}% of bankroll</div>`}
   </article>`).join("") + (rows.length > 150 ? `<div class="empty">Showing the top 150. Tighten the filters to see the rest.</div>` : "");

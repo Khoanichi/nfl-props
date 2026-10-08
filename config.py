@@ -52,4 +52,5 @@ MIN_EV = 0.03                # only show plays with >= +3% expected value
 MAX_RAW_EDGE = 0.15          # model vs market gaps bigger than this usually mean missing news: flagged
 KELLY_FRACTION = 0.25        # quarter Kelly
 MAX_STAKE_PCT = 0.02         # never more than 2% of bankroll on one prop
+RECENT_GAMES = 6             # game logs shown on each card
 BET_LOG = "bet_log.csv"

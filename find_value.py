@@ -7,6 +7,7 @@ Usage:
 """
 import argparse
 import glob
+import json
 import os
 from datetime import datetime
 
@@ -103,12 +104,23 @@ def main():
         print(f"{len(unmatched)} props had no projection (rookies/new roles/name mismatch), e.g.: "
               + ", ".join(sorted(unmatched)[:6]))
 
+    # last games for each matched player, so the page can show the recent box scores next to the line
+    hist = ps[ps.player_id.isin(m.player_id.dropna())].sort_values("t", ascending=False)
+    hist = hist.groupby("player_id").head(C.RECENT_GAMES)
+    recent = {}
+    for pid, g in hist.groupby("player_id"):
+        for market, spec in C.MARKETS.items():
+            recent[(pid, market)] = json.dumps([
+                dict(w=f"{'W' if s == a.season else str(s)[2:] + 'W'}{int(w)}", opp=o, v=float(v))
+                for s, w, o, v in zip(g.season, g.week, g.opponent_team, g[spec["stat"]].fillna(0))])
+
     plays = []
     for _, r in m.iterrows():
         for res in evaluate(r):
             plays.append({**{k: r[k] for k in ["player", "position", "team", "opp", "market", "line",
                                                 "mean", "games", "injury", "report_status", "n_books",
-                                                "two_sided", "player_id", "commence"]}, **res})
+                                                "two_sided", "player_id", "commence"]},
+                          "recent": recent.get((r.player_id, r.market), "[]"), **res})
     df = pd.DataFrame(plays)
     df["flags"] = ""
     df.loc[df.report_status.isin(BAD_STATUS), "flags"] += "OUT/DOUBTFUL "
