@@ -304,7 +304,7 @@ def build():
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
 <style>{CSS}</style></head><body>
 <header><h1>Games this week</h1><p>Lines, how they moved, and where the public's money is. Updated {datetime.now():%a %b %d, %I:%M %p} UTC.</p></header>
-<nav><a href="index.html">Props</a><a class="on" href="games.html">Games</a></nav>
+<nav><a href="index.html">Board</a><a href="parlay.html">Parlay</a><a class="on" href="games.html">Games</a></nav>
 <main>{note}{"".join(cards) if cards else '<div class="empty">No games loaded yet. The Saturday run fills this in.</div>'}
 <h2 style="color:var(--paper);font:600 24px var(--display);margin:18px 0 10px">Charts</h2>{charts_html()}</main>
 <footer>How to read a trap: when 70%+ of tickets are on one side but the line moves the other way, or the money share is much bigger than the ticket share, the sportsbook is happy to take the public's side. That is a reason to pause, not an automatic fade.</footer>

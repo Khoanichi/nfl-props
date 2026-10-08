@@ -72,6 +72,7 @@ def plays_json(df):
             ev=round(100 * r.ev, 1), stake=round(100 * r.stake_pct, 2), flags=r.flags, injury=r.injury,
             kick=str(r.commence), gap=bool(abs(r.raw_edge) > C.MAX_RAW_EDGE or ("no-recent-game" in r.flags) or ("odd-line" in r.flags)), line_num=float(r.line),
             recent=json.loads(r.recent) if isinstance(r.recent, str) else [],
+            streak=json.loads(r.streak) if isinstance(getattr(r, "streak", None), str) else [],
             model_spread=(float(r.model_spread) if game and pd.notna(r.model_spread) else None),
         ))
     return rows
@@ -234,7 +235,7 @@ input[type=range]{width:100%;accent-color:var(--ok);height:34px}
 <body>
 <header>
   <div><h1>Week __WEEK__ board</h1><p id="count">Updated __UPDATED__.</p><p id="checks" class="checks"></p></div>
-  <nav class="pages"><a class="on" href="index.html">Board</a><a href="games.html">Games</a></nav>
+  <nav class="pages"><a class="on" href="index.html">Board</a><a href="parlay.html">Parlay</a><a href="games.html">Games</a></nav>
 </header>
 <div class="bar"><div class="bar-in">
   <label class="search" id="searchwrap">
@@ -529,14 +530,178 @@ syncSheet(); render();
 """
 
 
+PARLAY_HTML = r"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Week __WEEK__ parlay builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--felt:#1b3f32;--felt-2:#16342a;--paper:#f6f1e4;--paper-edge:#e7dfc9;--ink:#1c1b17;--ink-soft:#6e6a5e;--chip:#c8372d;--gold:#b9922f;--ok:#2e7d4f;--mint:#8fb0a0;
+--display:"Oswald","Arial Narrow",Impact,sans-serif;--body:"Source Sans 3","Segoe UI",system-ui,sans-serif;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--felt);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.35}
+header{color:var(--paper);padding:18px 16px 6px;max-width:640px;margin:0 auto;display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+header h1{font:600 32px var(--display);margin:0;line-height:1}
+header p{margin:4px 0 0;color:#c9d6cd;font-size:14px}
+.pages{display:flex;gap:6px}
+.pages a{color:var(--paper);text-decoration:none;border:1.5px solid var(--mint);border-radius:999px;padding:7px 12px;font-weight:600;font-size:14px;white-space:nowrap}
+.pages a.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--felt);padding:10px 16px 10px;box-shadow:0 8px 14px -10px rgba(0,0,0,.5)}
+.bar-in{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:8px;align-items:center}
+.row label{flex:1;display:flex;flex-direction:column;gap:3px;font-size:12px;color:#c9d6cd}
+select{border:1.5px solid var(--mint);background:var(--felt-2);color:var(--paper);border-radius:10px;padding:9px 8px;font:600 15px var(--body);min-height:44px;width:100%}
+.seg{display:flex;border:1.5px solid var(--mint);border-radius:10px;overflow:hidden;flex:1}
+.seg button{flex:1;border:0;background:transparent;color:var(--paper);min-height:40px;font:600 14px var(--body)}
+.seg button[aria-pressed=true]{background:var(--paper);color:var(--ink)}
+main{max-width:640px;margin:0 auto;padding:12px 12px 120px}
+.intro{background:var(--felt-2);border:1px solid var(--mint);color:#dfe8e2;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.4;margin-bottom:12px}
+.card{background:var(--paper);border-radius:6px;margin:0 0 12px;box-shadow:0 2px 0 var(--paper-edge);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.name{font:600 20px var(--display);line-height:1.1}
+.meta{color:var(--ink-soft);font-size:13px}
+.pick{font:500 17px var(--display);margin-top:2px}
+.odds{font:600 26px var(--display);color:var(--chip);line-height:1;text-align:right;white-space:nowrap}
+.odds small{display:block;font:600 12px var(--body);color:var(--ink-soft);margin-top:3px}
+.dots{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.dots i{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 10px var(--body);color:#fff;background:#cfc6ad}
+.dots i.h{background:var(--ok)}.dots i.m{background:var(--chip)}.dots i.old{opacity:.55}
+.dots span{font-size:13px;color:var(--ink-soft);margin-left:4px}
+.stats{display:flex;gap:14px;font-size:13px;color:var(--ink-soft)}
+.stats b{font:600 16px var(--display);color:var(--ink);margin-left:4px}
+.foot{display:flex;justify-content:space-between;align-items:center}
+.addp{border:1.5px solid #cfc6ad;background:transparent;color:var(--ink);border-radius:8px;padding:7px 12px;font:600 14px var(--body);min-height:36px}
+.addp[aria-pressed=true]{background:var(--ok);border-color:var(--ok);color:#fff}
+.empty{background:var(--paper);border-radius:6px;padding:22px 18px}
+.tray{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:15;display:flex;gap:8px}
+.tray[hidden]{display:none}
+.tray-main{flex:1;display:flex;justify-content:space-between;align-items:center;border:0;background:var(--ink);color:var(--paper);border-radius:12px;min-height:52px;padding:0 16px;font:600 15px var(--body);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.tray-main b{font:600 17px var(--display)}
+.tray-x{border:0;background:var(--ink);color:var(--paper);border-radius:12px;width:52px;font-size:24px}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:88vh;background:var(--paper);color:var(--ink);border-radius:16px 16px 0 0;transform:translateY(102%);transition:transform .25s;z-index:21;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
+body.popen .scrim{opacity:1;pointer-events:auto}body.popen .sheet{transform:none}
+@media (min-width:700px){.sheet{left:50%;right:auto;width:560px;transform:translate(-50%,102%)}body.popen .sheet{transform:translate(-50%,0)}}
+.sh{display:flex;justify-content:space-between;align-items:center;padding:14px 18px 8px}.sh h2{font:600 24px var(--display);margin:0}.sh button{border:0;background:transparent;font:600 15px var(--body);color:var(--chip);padding:6px}
+.grab{width:40px;height:4px;border-radius:2px;background:#cfc6ad;margin:8px auto 0}
+.sb{overflow:auto;padding:0 18px 10px;flex:1}
+.sec{padding:12px 0;border-top:1px solid #e7dfc9}.sec h3{font:600 15px var(--body);margin:0 0 8px;color:var(--ink-soft)}
+.seg2{display:flex;border:1.5px solid #cfc6ad;border-radius:10px;overflow:hidden}.seg2 button{flex:1;border:0;background:transparent;color:var(--ink);min-height:40px;font:600 14px var(--body)}.seg2 button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+.note{font-size:13px;color:var(--ink-soft);margin:6px 0 10px}
+.autob{width:100%;min-height:46px;border:0;border-radius:10px;background:var(--ink);color:var(--paper);font:600 16px var(--body)}
+.leg{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed #e7dfc9}.leg .t{min-width:0}.leg .t b{display:block;font:600 16px var(--display)}.leg .t small{font-size:12.5px;color:var(--ink-soft)}.leg .o{font:600 17px var(--display);white-space:nowrap}.leg .rm{border:0;background:transparent;font-size:22px;color:var(--ink-soft);padding:0 4px}
+.ps{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.ps div{background:#ebe4d2;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--ink-soft)}.ps b{display:block;font:600 22px var(--display);color:var(--ink)}
+.warn{margin-top:10px;padding:8px 10px;border-radius:6px;background:#f1dcd8;color:#8a2a22;font-size:13px}.good{margin-top:10px;padding:8px 10px;border-radius:6px;background:#dcebdd;color:#1f5e37;font-size:13px}
+.sf{display:flex;gap:10px;padding:10px 18px 14px;border-top:1px solid #e7dfc9;background:var(--paper)}.sf button{flex:1;min-height:46px;border-radius:10px;font:600 16px var(--body)}.sf .reset{border:1.5px solid #cfc6ad;background:transparent;color:var(--ink)}.sf .apply{border:0;background:var(--ok);color:#fff}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Parlay builder</h1><p id="count">Week __WEEK__ · heavy favorites on a streak</p></div>
+  <nav class="pages"><a href="index.html">Board</a><a class="on" href="parlay.html">Parlay</a><a href="games.html">Games</a></nav>
+</header>
+<div class="bar"><div class="bar-in">
+  <div class="row">
+    <label>Hit at least<select id="fmin"><option value="1">every game (100%)</option><option value="0.9">90% of games</option><option value="0.8" selected>80% of games</option><option value="0.7">70% of games</option></select></label>
+    <label>Over at least<select id="fn"><option value="4">4 games</option><option value="6" selected>6 games</option><option value="8">8 games</option><option value="10">10 games</option></select></label>
+    <label>Odds no longer than<select id="fodds"><option value="-100">-100</option><option value="-150">-150</option><option value="-200" selected>-200</option><option value="-300">-300</option><option value="-500">-500</option></select></label>
+  </div>
+  <div class="row">
+    <div class="seg" id="fside"><button data-v="all" aria-pressed="true">Any side</button><button data-v="Over">Over</button><button data-v="Under">Under</button></div>
+    <div class="seg" id="fseason"><button data-v="all" aria-pressed="true">Incl. last season</button><button data-v="cur">This season only</button></div>
+  </div>
+</div></div>
+<main>
+  <div class="intro">This page ranks legs by how often they've cleared today's line, not by value. Heavy favorites that keep hitting are the raw material; the slip at the bottom shows what they're really worth once multiplied. A 90% leg five times over is a 59% parlay.</div>
+  <div id="list"></div>
+</main>
+<div class="tray" id="tray" hidden><button class="tray-main" id="opentray"><span><b id="trayN">0 legs</b> <span id="trayOdds"></span></span><span id="trayP"></span></button><button class="tray-x" id="cleartray" aria-label="Clear parlay">&times;</button></div>
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="psheet" role="dialog" aria-modal="true" aria-label="Parlay slip">
+  <div class="grab"></div>
+  <div class="sh"><h2>Your slip</h2><button id="closep">Done</button></div>
+  <div class="sb">
+    <div class="sec" style="border-top:0"><h3>Auto-build to a target</h3>
+      <div class="seg2" id="ptarget"><button data-v="2">+100</button><button data-v="3" aria-pressed="true">+200</button><button data-v="4">+300</button><button data-v="6">+500</button></div>
+      <p class="note">Fills the slip with the legs that match your filters above, best streak first, one per game, until the payout reaches the target.</p>
+      <button class="autob" id="autobuild">Auto-build</button></div>
+    <div class="sec"><h3>Legs</h3><div id="legs"></div></div>
+    <div class="sec" id="psummary"></div>
+  </div>
+  <div class="sf"><button class="reset" id="clearp">Clear</button><button class="apply" id="copyp">Copy slip</button></div>
+</section>
+<script>
+const PLAYS = __PLAYS__;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const when = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleString([], {weekday:"short", hour:"numeric", minute:"2-digit"}); };
+const amer = o => parseInt(o, 10) || 0, dec = o => { const n = amer(o); return n >= 100 ? 1 + n / 100 : n <= -100 ? 1 + 100 / -n : 1; };
+const toAmer = d => d >= 2 ? "+" + Math.round((d - 1) * 100) : String(Math.round(-100 / (d - 1)));
+const idOf = p => p.player + "|" + p.mkey + "|" + p.side + "|" + p.line_num;
+const gameOf = p => p.kind === "game" ? p.player : (p.team < p.opp ? p.team + " / " + p.opp : p.opp + " / " + p.team);
+let S = {min: 0.8, n: 6, odds: -200, side: "all", season: "all", target: 3};
+try { Object.assign(S, JSON.parse(localStorage.getItem("parlayPage") || "{}")); } catch(e) {}
+let PARLAY = new Set(); try { PARLAY = new Set(JSON.parse(localStorage.getItem("parlayLegs") || "[]")); } catch(e) {}
+const saveAll = () => { try { localStorage.setItem("parlayPage", JSON.stringify(S)); localStorage.setItem("parlayLegs", JSON.stringify([...PARLAY])); } catch(e) {} };
+function log(p){ let g = p.kind === "game" ? p.recent : (p.streak && p.streak.length ? p.streak : p.recent); if (S.season === "cur") g = g.filter(x => x.cur !== false); return g; }
+function hitOf(p, g){ return p.mkey === "game_spread" ? (g.line == null ? null : g.v + g.line > 0) : p.mkey === "game_moneyline" ? g.v > 0 : p.mkey === "game_total" ? (g.line == null ? null : (p.side === "Over" ? g.v > g.line : g.v < g.line)) : (p.side === "Over" ? g.v > p.line_num : g.v < p.line_num); }
+function streak(p){ const g = log(p); const hs = g.map(x => hitOf(p, x)); const of = hs.filter(x => x !== null).length, n = hs.filter(Boolean).length; return {n, of, rate: of ? n / of : 0, each: hs, g}; }
+function pool(){
+  return PLAYS.filter(p => !p.gap && amer(p.odds) <= S.odds && amer(p.odds) < 0 && (S.side === "all" || p.side === S.side))
+    .map(p => ({p, s: streak(p)})).filter(x => x.s.of >= S.n && x.s.rate >= S.min)
+    .sort((a, b) => b.s.rate - a.s.rate || b.s.of - a.s.of || b.p.market_p - a.p.market_p);
+}
+function card(x){ const p = x.p, s = x.s;
+  const dots = s.g.map((g, i) => `<i class="${s.each[i] === null ? "" : s.each[i] ? "h" : "m"}${g.cur === false ? " old" : ""}" title="${esc(g.w)} ${esc(g.opp)}: ${g.v}">${g.v % 1 ? g.v.toFixed(1) : g.v}</i>`).join("");
+  return `<article class="card"><div class="top"><div><div class="name">${esc(p.player)}</div><div class="meta">${p.kind === "game" ? esc(p.market) : esc(p.pos) + " " + esc(p.team) + " vs " + esc(p.opp)} · ${when(p.kick)}</div><div class="pick">${esc(p.pick)}</div></div><div class="odds">${esc(p.odds)}<small>${esc(p.book)}</small></div></div>
+  <div class="dots">${dots}<span>${s.n} of ${s.of}</span></div>
+  <div class="stats"><span>Market win %<b>${p.market_p}</b></span><span>Model<b>${p.model}</b></span><span>Streak<b>${Math.round(100 * s.rate)}%</b></span></div>
+  <div class="foot"><span class="meta">${p.gap ? "check news" : ""}</span><button class="addp" data-id="${esc(idOf(p))}" aria-pressed="${PARLAY.has(idOf(p))}">${PARLAY.has(idOf(p)) ? "In slip" : "+ Add"}</button></div></article>`;
+}
+function render(){ saveAll(); const rows = pool(); $("count").textContent = `Week __WEEK__ · ${rows.length} legs match`; $("list").innerHTML = rows.length ? rows.slice(0, 120).map(card).join("") : `<div class="empty"><b>No legs match.</b> Loosen the hit rate or allow longer odds.</div>`; renderTray(); }
+function stats(legs){ const d = legs.reduce((a, p) => a * dec(p.odds), 1), pm = legs.reduce((a, p) => a * p.market_p / 100, 1); return {d, pm, games: new Set(legs.map(gameOf)).size}; }
+function renderTray(){ const legs = PLAYS.filter(p => PARLAY.has(idOf(p))); $("tray").hidden = !legs.length; if (!legs.length){ $("legs").innerHTML = `<p class="note">Empty. Add legs above or auto-build.</p>`; $("psummary").innerHTML = ""; return; }
+  const s = stats(legs); $("trayN").textContent = legs.length + (legs.length === 1 ? " leg" : " legs"); $("trayOdds").textContent = toAmer(s.d); $("trayP").textContent = Math.round(100 * s.pm) + "% to hit";
+  $("legs").innerHTML = legs.map(p => `<div class="leg"><div class="t"><b>${esc(p.player)}</b><small>${esc(p.pick)} · ${esc(p.book)} · market ${p.market_p}%</small></div><span class="o">${esc(p.odds)}</span><button class="rm" data-id="${esc(idOf(p))}" aria-label="Remove">&times;</button></div>`).join("");
+  [...$("legs").querySelectorAll(".rm")].forEach(b => b.onclick = () => { PARLAY.delete(b.dataset.id); render(); });
+  const same = s.games < legs.length;
+  $("psummary").innerHTML = `<h3>If the book pays the legs multiplied</h3><div class="ps"><div>Combined odds<b>${toAmer(s.d)}</b></div><div>Payout on $10<b>$${(10 * s.d).toFixed(0)}</b></div><div>Chance it all hits<b>${Math.round(100 * s.pm)}%</b></div><div>Legs<b>${legs.length}</b></div></div>
+   <div class="warn">That ${Math.round(100 * s.pm)}% uses the market's own numbers for each leg, which is the fairest guess for favorites. Streaks don't raise it: a 6-for-6 run at -200 is still about a 67% leg.</div>
+   ${same ? `<div class="warn">Two legs share a game, so the true odds are not a clean multiply and books reprice same-game slips.</div>` : ""}`;
+}
+function autoBuild(){ PARLAY = new Set(); const games = new Set(), players = new Set(); let d = 1; for (const x of pool()){ const p = x.p, g = gameOf(p); if (games.has(g) || players.has(p.player)) continue; PARLAY.add(idOf(p)); games.add(g); players.add(p.player); d *= dec(p.odds); if (d >= S.target || PARLAY.size >= 10) break; } render(); openP(true); }
+const openP = v => document.body.classList.toggle("popen", v);
+function seg(el, val, fn){ [...el.children].forEach(b => { b.setAttribute("aria-pressed", b.dataset.v === val); b.onclick = () => { fn(b.dataset.v); seg(el, b.dataset.v, fn); render(); }; }); }
+$("fmin").value = S.min; $("fn").value = S.n; $("fodds").value = S.odds;
+$("fmin").onchange = e => { S.min = +e.target.value; render(); }; $("fn").onchange = e => { S.n = +e.target.value; render(); }; $("fodds").onchange = e => { S.odds = +e.target.value; render(); };
+seg($("fside"), S.side, v => S.side = v); seg($("fseason"), S.season, v => S.season = v); seg($("ptarget"), String(S.target), v => S.target = +v);
+$("list").addEventListener("click", e => { const b = e.target.closest(".addp"); if (!b) return; PARLAY.has(b.dataset.id) ? PARLAY.delete(b.dataset.id) : PARLAY.add(b.dataset.id); render(); });
+$("opentray").onclick = () => openP(true); $("closep").onclick = $("scrim").onclick = () => openP(false);
+$("cleartray").onclick = $("clearp").onclick = () => { PARLAY = new Set(); render(); };
+$("autobuild").onclick = autoBuild;
+$("copyp").onclick = () => { const legs = PLAYS.filter(p => PARLAY.has(idOf(p))); const s = stats(legs); const txt = legs.map(p => `${p.player} ${p.pick} (${p.odds}, ${p.book})`).join("\n") + `\nCombined ${toAmer(s.d)}`; try { navigator.clipboard.writeText(txt); $("copyp").textContent = "Copied"; setTimeout(() => $("copyp").textContent = "Copy slip", 1200); } catch(e) {} };
+document.addEventListener("keydown", e => { if (e.key === "Escape") openP(false); });
+render();
+</script>
+</body>
+</html>
+"""
+
+
 def main():
     df, week, updated = load_latest(sys.argv[1] if len(sys.argv) > 1 else None)
     plays = plays_json(df)
+    os.makedirs("docs", exist_ok=True)
+    with open("docs/parlay.html", "w", encoding="utf-8") as f:
+        f.write(PARLAY_HTML.replace("__WEEK__", str(week)).replace("__PLAYS__", json.dumps(plays)))
     html = (HTML.replace("__WEEK__", str(week))
             .replace("__UPDATED__", updated.strftime("%a %b %d, %I:%M %p"))
             .replace("__PLAYS__", json.dumps(plays)).replace("__RESULTS__", json.dumps(results_json()))
             .replace("__CHECKS__", json.dumps(checks_json())))
-    os.makedirs("docs", exist_ok=True)
     with open("docs/index.html", "w", encoding="utf-8") as f:
         f.write(html)
     print(f"Wrote docs/index.html with {len(plays)} priced bets")

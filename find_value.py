@@ -150,13 +150,31 @@ def main():
                 dict(w=f"{'W' if s == a.season else str(s)[2:] + 'W'}{int(w)}", opp=o, v=float(v), cur=bool(s == a.season))
                 for s, w, o, v in zip(g.season, g.week, g.opponent_team, g[spec["stat"]].fillna(0))][::-1])  # oldest to newest
 
+    # streak log for the parlay page: last 10 games including last season, descriptive only (not a model input)
+    from model import add_derived
+    try:
+        prev = nfl.load_player_stats([a.season - 1]).to_pandas()
+        prev = add_derived(prev[(prev.season_type == "REG") & prev.player_id.isin(m.player_id.dropna())])
+        prev["t"] = prev["season"] * 100 + prev["week"]
+        long = pd.concat([ps[ps.player_id.isin(m.player_id.dropna())], prev], ignore_index=True)
+    except Exception:
+        long = ps[ps.player_id.isin(m.player_id.dropna())]
+    long = long.sort_values("t", ascending=False).groupby("player_id").head(C.STREAK_GAMES)
+    streak = {}
+    for pid, g in long.groupby("player_id"):
+        for market, spec in C.MARKETS.items():
+            streak[(pid, market)] = json.dumps([
+                dict(w=f"{'W' if s == a.season else str(s)[2:] + 'W'}{int(w)}", opp=o, v=float(v), cur=bool(s == a.season))
+                for s, w, o, v in zip(g.season, g.week, g.opponent_team, g[spec["stat"]].fillna(0))][::-1])
+
     plays = []
     for _, r in m.iterrows():
         for res in evaluate(r):
             plays.append({**{k: r[k] for k in ["player", "position", "team", "opp", "market", "line",
                                                 "mean", "games", "injury", "report_status", "n_books",
                                                 "two_sided", "player_id", "commence"]},
-                          "recent": recent.get((r.player_id, r.market), "[]"), **res})
+                          "recent": recent.get((r.player_id, r.market), "[]"),
+                          "streak": streak.get((r.player_id, r.market), "[]"), **res})
     df = pd.DataFrame(plays)
     df["flags"] = ""
     df.loc[df.report_status.isin(BAD_STATUS), "flags"] += "OUT/DOUBTFUL "

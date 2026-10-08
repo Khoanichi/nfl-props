@@ -55,4 +55,5 @@ MAX_RAW_EDGE = 0.15          # model vs market gaps bigger than this usually mea
 KELLY_FRACTION = 0.25        # quarter Kelly
 MAX_STAKE_PCT = 0.02         # never more than 2% of bankroll on one prop
 RECENT_GAMES = 6             # game logs shown on each card
+STREAK_GAMES = 10            # games (incl. last season) shown on the parlay page's streak dots
 BET_LOG = "bet_log.csv"
