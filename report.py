@@ -70,11 +70,17 @@ def plays_json(df):
             odds=to_american(r.price), book=str(r.book).replace("_", " "),
             proj=proj, model=round(100 * r.p_model), market_p=round(100 * r.p_market),
             ev=round(100 * r.ev, 1), stake=round(100 * r.stake_pct, 2), flags=r.flags, injury=r.injury,
-            kick=str(r.commence), gap=bool(abs(r.raw_edge) > C.MAX_RAW_EDGE), line_num=float(r.line),
+            kick=str(r.commence), gap=bool(abs(r.raw_edge) > C.MAX_RAW_EDGE or ("no-recent-game" in r.flags) or ("odd-line" in r.flags)), line_num=float(r.line),
             recent=json.loads(r.recent) if isinstance(r.recent, str) else [],
             model_spread=(float(r.model_spread) if game and pd.notna(r.model_spread) else None),
         ))
     return rows
+
+
+def checks_json():
+    if not os.path.exists("docs/checks.json"):
+        return None
+    return json.load(open("docs/checks.json"))
 
 
 def results_json():
@@ -109,6 +115,7 @@ body{margin:0;background:var(--felt);color:var(--ink);font-family:var(--body);fo
 header{color:var(--paper);padding:18px 16px 6px;max-width:640px;margin:0 auto;display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
 header h1{font-family:var(--display);font-weight:600;font-size:32px;margin:0;line-height:1}
 header p{margin:4px 0 0;color:#c9d6cd;font-size:14px}
+.checks{font-size:12.5px}.checks b{color:#7fe0a9}.checks b.bad{color:#f3a08f}.checks details{display:inline}.checks summary{display:inline;cursor:pointer;text-decoration:underline dotted}.checks ul{margin:4px 0 0;padding-left:16px;color:#c9d6cd}
 .pages{display:flex;gap:6px}
 .pages a{color:var(--paper);text-decoration:none;border:1.5px solid var(--mint);border-radius:999px;padding:7px 12px;font-weight:600;font-size:14px;white-space:nowrap}
 .pages a.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}
@@ -226,7 +233,7 @@ input[type=range]{width:100%;accent-color:var(--ok);height:34px}
 </head>
 <body>
 <header>
-  <div><h1>Week __WEEK__ board</h1><p id="count">Updated __UPDATED__.</p></div>
+  <div><h1>Week __WEEK__ board</h1><p id="count">Updated __UPDATED__.</p><p id="checks" class="checks"></p></div>
   <nav class="pages"><a class="on" href="index.html">Board</a><a href="games.html">Games</a></nav>
 </header>
 <div class="bar"><div class="bar-in">
@@ -292,6 +299,9 @@ input[type=range]{width:100%;accent-color:var(--ok);height:34px}
 <script>
 const PLAYS = __PLAYS__;
 const RESULTS = __RESULTS__;
+const CHECKS = __CHECKS__;
+if (CHECKS){ const n = CHECKS.checks.filter(c => c.ok).length, all = CHECKS.checks.length;
+  $("checks").innerHTML = `Data checks: <b class="${n === all ? "" : "bad"}">${n} of ${all} passed</b> <details><summary>details</summary><ul>${CHECKS.checks.map(c => `<li>${c.ok ? "OK" : "Check"}: ${esc(c.name)}${c.detail ? " (" + esc(c.detail) + ")" : ""}</li>`).join("")}</ul></details>`; }
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const when = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleString([], {weekday:"short", hour:"numeric", minute:"2-digit"}); };
@@ -425,7 +435,7 @@ function card(p){
       <div>Edge<b class="ev">${p.ev > 0 ? "+" : ""}${p.ev}%</b></div>
     </div>
     ${gamelog(p)}
-    <div class="flag ${/BIG-GAP|Q-tag/.test(p.flags) ? "" : "soft"}" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${p.flags ? esc(p.flags.replace("BIG-GAP:check-news","Model and market disagree: check news").replace("Q-tag","Questionable").replace("small-sample","Few games of data").replace("one-sided-mkt","Only one side priced")) + " &nbsp;" : ""}Stake ${p.stake}%</span><button class="addp" data-id="${esc(idOf(p))}" aria-pressed="${PARLAY.has(idOf(p))}">${PARLAY.has(idOf(p)) ? "In parlay" : "+ Parlay"}</button></div>
+    <div class="flag ${/BIG-GAP|Q-tag/.test(p.flags) ? "" : "soft"}" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${p.flags ? esc(p.flags.replace("BIG-GAP:check-news","Model and market disagree: check news").replace("Q-tag","Questionable").replace("small-sample","Few games of data").replace("one-sided-mkt","Only one side priced").replace("no-recent-game","No game in 3+ weeks: traded or hurt?").replace("odd-line","Line far from projection: alt line or bad match")) + " &nbsp;" : ""}Stake ${p.stake}%</span><button class="addp" data-id="${esc(idOf(p))}" aria-pressed="${PARLAY.has(idOf(p))}">${PARLAY.has(idOf(p)) ? "In parlay" : "+ Parlay"}</button></div>
   </article>`;
 }
 function fmtSpread(p){
@@ -524,7 +534,8 @@ def main():
     plays = plays_json(df)
     html = (HTML.replace("__WEEK__", str(week))
             .replace("__UPDATED__", updated.strftime("%a %b %d, %I:%M %p"))
-            .replace("__PLAYS__", json.dumps(plays)).replace("__RESULTS__", json.dumps(results_json())))
+            .replace("__PLAYS__", json.dumps(plays)).replace("__RESULTS__", json.dumps(results_json()))
+            .replace("__CHECKS__", json.dumps(checks_json())))
     os.makedirs("docs", exist_ok=True)
     with open("docs/index.html", "w", encoding="utf-8") as f:
         f.write(html)

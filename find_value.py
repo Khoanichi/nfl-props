@@ -37,6 +37,34 @@ def injury_table(inj, week):
     return i.rename(columns={"gsis_id": "player_id"})[["player_id", "injury", "report_status"]].drop_duplicates("player_id", keep="last")
 
 
+def audit(ps, sched, season, week, mt, m, proj):
+    """Data-integrity checks. Hard failures stop the run; soft ones are written to docs/checks.json
+    and shown on the page. Bad data in means bad picks out, so this runs every time."""
+    checks, hard = [], []
+    latest = int(ps[ps.season == season].week.max()) if (ps.season == season).any() else 0
+    ok = latest >= week - 1
+    checks.append(dict(name=f"Stats current through Week {latest}", ok=ok, detail="" if ok else f"expected Week {week - 1}"))
+    if not ok:
+        hard.append("stats are stale")
+    g = sched[(sched.season == season) & (sched.week == week)]
+    miss = int(g.spread_line.isna().sum() + g.total_line.isna().sum())
+    checks.append(dict(name="Vegas lines on every game this week", ok=miss == 0, detail="" if miss == 0 else f"{miss} missing"))
+    # name collisions: one odds name maps to two different players on teams in that game
+    dup = m.groupby(["player", "home_abbr", "away_abbr", "market"]).player_id.nunique()
+    dup = dup[dup > 1]
+    checks.append(dict(name="No player-name collisions", ok=dup.empty, detail="" if dup.empty else ", ".join(sorted({i[0] for i in dup.index})[:5])))
+    # matched players should have appeared in a recent game
+    last = ps[ps.season == season].groupby("player_id").week.max()
+    stale_ids = set(last[last < week - 3].index) & set(m.player_id.dropna())
+    stale_names = sorted(set(m[m.player_id.isin(stale_ids)].player))
+    checks.append(dict(name="Matched players active in the last 3 weeks", ok=not stale_names,
+                       detail="" if not stale_names else f"{len(stale_names)} flagged: " + ", ".join(stale_names[:5])))
+    unmatched = len(set(mt.player) - set(m.player))
+    rate = 1 - unmatched / max(len(set(mt.player)), 1)
+    checks.append(dict(name="Props matched to a player record", ok=rate >= 0.6, detail=f"{rate:.0%} matched; team defenses and rookies without a game log are expected misses"))
+    return checks, hard, stale_ids
+
+
 def evaluate(row):
     po, pu, push = prob_over_under(row["mean"], row["var"], row["kind"], row["line"])
     fair_over = row["fair_over"]
@@ -104,6 +132,14 @@ def main():
         print(f"{len(unmatched)} props had no projection (rookies/new roles/name mismatch), e.g.: "
               + ", ".join(sorted(unmatched)[:6]))
 
+    checks, hard, stale_ids = audit(ps, sched, a.season, a.week, mt, m, proj)
+    for c in checks:
+        print(f"  [{'ok' if c['ok'] else 'WARN'}] {c['name']}{': ' + c['detail'] if c['detail'] else ''}")
+    os.makedirs("docs", exist_ok=True)
+    json.dump(dict(ran=datetime.now().isoformat(timespec="minutes"), week=a.week, checks=checks), open("docs/checks.json", "w"))
+    if hard:
+        raise SystemExit("Data checks failed, not publishing picks: " + "; ".join(hard))
+
     # last games for each matched player, so the page can show the recent box scores next to the line
     hist = ps[ps.player_id.isin(m.player_id.dropna())].sort_values("t", ascending=False)
     hist = hist.groupby("player_id").head(C.RECENT_GAMES)
@@ -112,7 +148,7 @@ def main():
         for market, spec in C.MARKETS.items():
             recent[(pid, market)] = json.dumps([
                 dict(w=f"{'W' if s == a.season else str(s)[2:] + 'W'}{int(w)}", opp=o, v=float(v), cur=bool(s == a.season))
-                for s, w, o, v in zip(g.season, g.week, g.opponent_team, g[spec["stat"]].fillna(0))][::-1])  # oldest to newest
+                for s, w, o, v in zip(g.season, g.week, g.opponent_team, g[spec["stat"]].fillna(0))])
 
     plays = []
     for _, r in m.iterrows():
@@ -128,6 +164,9 @@ def main():
     df.loc[df.raw_edge.abs() > C.MAX_RAW_EDGE, "flags"] += "BIG-GAP:check-news "
     df.loc[df.games < 4, "flags"] += "small-sample "
     df.loc[~df.two_sided, "flags"] += "one-sided-mkt "
+    df.loc[df.player_id.isin(stale_ids), "flags"] += "no-recent-game "
+    ratio = df["mean"] / df.line.replace(0, np.nan)
+    df.loc[(df.market.isin(["player_pass_yds", "player_rush_yds", "player_reception_yds"])) & ((ratio > 3) | (ratio < 0.33)), "flags"] += "odd-line "
 
     df = df.sort_values("ev", ascending=False)
     os.makedirs("output", exist_ok=True)
@@ -137,7 +176,7 @@ def main():
     # the shown list drops BIG-GAP rows: when the model and market disagree that much, the market
     # almost always knows something (new starter, injury), and keeps one line per player and side
     show = df if a.all else df[(df.ev >= C.MIN_EV) & ~df.report_status.isin(BAD_STATUS)
-                               & (df.raw_edge.abs() <= C.MAX_RAW_EDGE)]
+                               & (df.raw_edge.abs() <= C.MAX_RAW_EDGE) & ~df["flags"].str.contains("no-recent-game|odd-line")]
     show = show.drop_duplicates(["player", "market", "side"])
     view = show.assign(
         pick=show.player + " " + show.side + " " + show.line.astype(str) + " " + show.market.str.replace("player_", ""),
