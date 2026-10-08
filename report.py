@@ -46,11 +46,13 @@ def load_latest(path=None):
     return df, week, datetime.fromtimestamp(os.path.getmtime(path))
 
 
-def plays_json(df):
+def plays_json(df, all_lines=False):
     """Every priced bet (one row per subject, market and side) so the page can filter it any way.
-    Big model-vs-market gaps are kept but marked, since they usually mean the market knows something."""
+    Big model-vs-market gaps are kept but marked, since they usually mean the market knows something.
+    all_lines=True keeps alternate lines too (the parlay page wants the easy -300 ladders)."""
     show = df[~df.report_status.fillna("").isin(["Out", "Doubtful"])]
-    show = show.sort_values("ev", ascending=False).drop_duplicates(["player", "market", "side"]).copy()
+    keys = ["player", "market", "side"] + (["line"] if all_lines else [])
+    show = show.sort_values("ev", ascending=False).drop_duplicates(keys).copy()
     show["flags"] = show["flags"].fillna("").str.strip()
     show["injury"] = show.injury.fillna("")
     rows = []
@@ -608,7 +610,7 @@ body.popen .scrim{opacity:1;pointer-events:auto}body.popen .sheet{transform:none
   <div class="row">
     <label>Hit at least<select id="fmin"><option value="1">every game (100%)</option><option value="0.9">90% of games</option><option value="0.8" selected>80% of games</option><option value="0.7">70% of games</option></select></label>
     <label>Over at least<select id="fn"><option value="4">4 games</option><option value="6" selected>6 games</option><option value="8">8 games</option><option value="10">10 games</option></select></label>
-    <label>Odds no longer than<select id="fodds"><option value="-100">-100</option><option value="-150">-150</option><option value="-200" selected>-200</option><option value="-300">-300</option><option value="-500">-500</option></select></label>
+    <label>Odds no longer than<select id="fodds"><option value="-100">-100</option><option value="-150">-150</option><option value="-200">-200</option><option value="-300" selected>-300</option><option value="-500">-500</option></select></label>
   </div>
   <div class="row">
     <div class="seg" id="fside"><button data-v="all" aria-pressed="true">Any side</button><button data-v="Over">Over</button><button data-v="Under">Under</button></div>
@@ -643,7 +645,7 @@ const amer = o => parseInt(o, 10) || 0, dec = o => { const n = amer(o); return n
 const toAmer = d => d >= 2 ? "+" + Math.round((d - 1) * 100) : String(Math.round(-100 / (d - 1)));
 const idOf = p => p.player + "|" + p.mkey + "|" + p.side + "|" + p.line_num;
 const gameOf = p => p.kind === "game" ? p.player : (p.team < p.opp ? p.team + " / " + p.opp : p.opp + " / " + p.team);
-let S = {min: 0.8, n: 6, odds: -200, side: "all", season: "all", target: 3};
+let S = {min: 0.8, n: 6, odds: -300, side: "all", season: "all", target: 3};
 try { Object.assign(S, JSON.parse(localStorage.getItem("parlayPage") || "{}")); } catch(e) {}
 let PARLAY = new Set(); try { PARLAY = new Set(JSON.parse(localStorage.getItem("parlayLegs") || "[]")); } catch(e) {}
 const saveAll = () => { try { localStorage.setItem("parlayPage", JSON.stringify(S)); localStorage.setItem("parlayLegs", JSON.stringify([...PARLAY])); } catch(e) {} };
@@ -651,7 +653,7 @@ function log(p){ let g = p.kind === "game" ? p.recent : (p.streak && p.streak.le
 function hitOf(p, g){ return p.mkey === "game_spread" ? (g.line == null ? null : g.v + g.line > 0) : p.mkey === "game_moneyline" ? g.v > 0 : p.mkey === "game_total" ? (g.line == null ? null : (p.side === "Over" ? g.v > g.line : g.v < g.line)) : (p.side === "Over" ? g.v > p.line_num : g.v < p.line_num); }
 function streak(p){ const g = log(p); const hs = g.map(x => hitOf(p, x)); const of = hs.filter(x => x !== null).length, n = hs.filter(Boolean).length; return {n, of, rate: of ? n / of : 0, each: hs, g}; }
 function pool(){
-  return PLAYS.filter(p => !p.gap && amer(p.odds) <= S.odds && amer(p.odds) < 0 && (S.side === "all" || p.side === S.side))
+  return PLAYS.filter(p => !/no-recent-game|odd-line|OUT/.test(p.flags) && amer(p.odds) <= S.odds && amer(p.odds) < 0 && (S.side === "all" || p.side === S.side))
     .map(p => ({p, s: streak(p)})).filter(x => x.s.of >= S.n && x.s.rate >= S.min)
     .sort((a, b) => b.s.rate - a.s.rate || b.s.of - a.s.of || b.p.market_p - a.p.market_p);
 }
@@ -697,7 +699,7 @@ def main():
     plays = plays_json(df)
     os.makedirs("docs", exist_ok=True)
     with open("docs/parlay.html", "w", encoding="utf-8") as f:
-        f.write(PARLAY_HTML.replace("__WEEK__", str(week)).replace("__PLAYS__", json.dumps(plays)))
+        f.write(PARLAY_HTML.replace("__WEEK__", str(week)).replace("__PLAYS__", json.dumps(plays_json(df, all_lines=True))))
     html = (HTML.replace("__WEEK__", str(week))
             .replace("__UPDATED__", updated.strftime("%a %b %d, %I:%M %p"))
             .replace("__PLAYS__", json.dumps(plays)).replace("__RESULTS__", json.dumps(results_json()))
