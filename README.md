@@ -56,6 +56,14 @@ player/team search, minimum model win %, minimum edge, sort by edge, model % or 
 include the "check news" plays (model and market disagree by 15%+; usually a role change the stats
 haven't caught up with). Defaults show plays at +3% edge or better.
 
+## Games dashboard (games.html)
+One card per game: consensus spread and total, how far each has moved since we first saw it, and the
+public's share of tickets and money on each side (from Action Network's public feed, unofficial; if it
+is down the card shows lines only, or you can supply a splits.csv with columns away,home,market,side,tickets,money).
+A "Trap?" tag appears when two or more of these line up: 70%+ of tickets on one side, the line moving
+against that side, or money share far above ticket share. Charts at the bottom: plays by market, overs vs
+unders, and running profit by week once picks are graded. Costs 2 API credits per run.
+
 ## Reading the output
 | column | meaning |
 |---|---|

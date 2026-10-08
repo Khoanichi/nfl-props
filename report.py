@@ -88,6 +88,9 @@ body{margin:0;background:var(--felt);color:var(--ink);font-family:var(--body);fo
 header{color:var(--paper);padding:20px 16px 8px;max-width:640px;margin:0 auto}
 header h1{font-family:var(--display);font-weight:600;font-size:34px;margin:0;letter-spacing:.3px;line-height:1}
 header p{margin:6px 0 0;color:#c9d6cd;font-size:15px}
+.pages{max-width:640px;margin:0 auto;padding:8px 16px 4px;display:flex;gap:8px}
+.pages a{color:var(--paper);text-decoration:none;border:1.5px solid #8fb0a0;border-radius:999px;padding:8px 14px;font-weight:600;font-size:15px}
+.pages a.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:10px 16px 14px;max-width:640px;margin:0 auto;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:0 0 auto;border:1.5px solid #8fb0a0;color:var(--paper);background:transparent;border-radius:999px;padding:8px 14px;font:600 15px var(--body);min-height:40px}
@@ -142,6 +145,7 @@ details{margin-top:4px}
   <h1>Week __WEEK__ props</h1>
   <p id="count">Updated __UPDATED__.</p>
 </header>
+<nav class="pages"><a class="on" href="index.html">Props</a><a href="games.html">Games</a></nav>
 <div class="chips" id="chips" role="group" aria-label="Filter by market"></div>
 <div class="controls">
   <input id="q" type="search" placeholder="Player or team" aria-label="Search player or team" autocomplete="off">
