@@ -76,7 +76,7 @@ body.popen .scrim{opacity:1;pointer-events:auto}body.popen .sheet{transform:none
   <div class="row">
     <label>Hit at least<select id="fmin"><option value="1">every game (100%)</option><option value="0.9">90% of games</option><option value="0.8" selected>80% of games</option><option value="0.7">70% of games</option></select></label>
     <label>Over at least<select id="fn"><option value="4">4 games</option><option value="6" selected>6 games</option><option value="8">8 games</option><option value="10">10 games</option></select></label>
-    <label>Odds no longer than<select id="fodds"><option value="-100">-100</option><option value="-150">-150</option><option value="-200">-200</option><option value="-300" selected>-300</option><option value="-500">-500</option></select></label>
+    <label>Favored by at least<select id="fodds"><option value="-101" selected>any favorite</option><option value="-130">-130</option><option value="-150">-150</option><option value="-200">-200</option><option value="-300">-300</option></select></label>
   </div>
   <div class="row">
     <div class="seg" id="fside"><button data-v="all" aria-pressed="true">Any side</button><button data-v="Over">Over</button><button data-v="Under">Under</button></div>
@@ -111,7 +111,7 @@ const amer = o => parseInt(o, 10) || 0, dec = o => { const n = amer(o); return n
 const toAmer = d => d >= 2 ? "+" + Math.round((d - 1) * 100) : String(Math.round(-100 / (d - 1)));
 const idOf = p => p.player + "|" + p.mkey + "|" + p.side + "|" + p.line_num;
 const gameOf = p => p.kind === "game" ? p.player : (p.team < p.opp ? p.team + " / " + p.opp : p.opp + " / " + p.team);
-let S = {min: 0.8, n: 6, odds: -300, side: "all", season: "all", target: 3};
+let S = {min: 0.8, n: 6, odds: -101, side: "all", season: "all", target: 3};
 try { Object.assign(S, JSON.parse(localStorage.getItem("parlayPage") || "{}")); } catch(e) {}
 let PARLAY = new Set(); try { PARLAY = new Set(JSON.parse(localStorage.getItem("parlayLegs") || "[]")); } catch(e) {}
 const saveAll = () => { try { localStorage.setItem("parlayPage", JSON.stringify(S)); localStorage.setItem("parlayLegs", JSON.stringify([...PARLAY])); } catch(e) {} };
@@ -130,7 +130,7 @@ function card(x){ const p = x.p, s = x.s;
   <div class="stats"><span>Market win %<b>${p.market_p}</b></span><span>Model<b>${p.model}</b></span><span>Streak<b>${Math.round(100 * s.rate)}%</b></span></div>
   <div class="foot"><span class="meta">${p.gap ? "check news" : ""}</span><button class="addp" data-id="${esc(idOf(p))}" aria-pressed="${PARLAY.has(idOf(p))}">${PARLAY.has(idOf(p)) ? "In slip" : "+ Add"}</button></div></article>`;
 }
-function render(){ saveAll(); const rows = pool(); $("count").textContent = `Week 5 · ${rows.length} legs match`; $("list").innerHTML = rows.length ? rows.slice(0, 120).map(card).join("") : `<div class="empty"><b>No legs match.</b> Loosen the hit rate or allow longer odds.</div>`; renderTray(); }
+function render(){ saveAll(); const rows = pool(); $("count").textContent = `Week 5 · ${rows.length} legs match`; $("list").innerHTML = rows.length ? rows.slice(0, 120).map(card).join("") : `<div class="empty"><b>No legs match.</b> Lower the hit rate, the game count, or the favorite threshold.</div>`; renderTray(); }
 function stats(legs){ const d = legs.reduce((a, p) => a * dec(p.odds), 1), pm = legs.reduce((a, p) => a * p.market_p / 100, 1); return {d, pm, games: new Set(legs.map(gameOf)).size}; }
 function renderTray(){ const legs = PLAYS.filter(p => PARLAY.has(idOf(p))); $("tray").hidden = !legs.length; if (!legs.length){ $("legs").innerHTML = `<p class="note">Empty. Add legs above or auto-build.</p>`; $("psummary").innerHTML = ""; return; }
   const s = stats(legs); $("trayN").textContent = legs.length + (legs.length === 1 ? " leg" : " legs"); $("trayOdds").textContent = toAmer(s.d); $("trayP").textContent = Math.round(100 * s.pm) + "% to hit";
