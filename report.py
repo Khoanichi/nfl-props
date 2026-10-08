@@ -129,6 +129,19 @@ header p{margin:4px 0 0;color:#93A1B3;font-size:14px}
 .pages a{color:#F2F5F8;text-decoration:none;border:1px solid var(--mint);background:var(--felt-2);border-radius:10px;padding:8px 12px;font-weight:700;font-size:13px;white-space:nowrap}
 .pages a.on{background:#F2F5F8;color:var(--ink);border-color:#F2F5F8}
 .pages a.refresh{font-size:18px;line-height:1;padding:6px 11px;border-color:var(--gold);color:var(--gold)}
+/* layout: wider, grid, compact */
+header,.bar-in,.active,main{max-width:1180px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;align-items:start}
+.cat{display:flex;align-items:baseline;justify-content:space-between;color:#F2F5F8;margin:18px 2px 10px;font:600 20px var(--display)}
+.cat:first-child{margin-top:4px}
+.cat small{font:600 13px var(--body);color:#93A1B3}
+.cat .more{border:1px solid var(--mint);background:var(--felt-2);color:#F2F5F8;border-radius:999px;padding:4px 10px;font:700 12px var(--body)}
+.card .name{font-size:19px}.card .pick{font-size:17px;margin-top:5px}.card .meta{font-size:13px}
+.card .odds{font-size:22px}.card .odds small{font-size:12px}
+.card .nums{padding:8px 12px 6px;gap:5px}.card .nums div{padding:6px 8px;font-size:11.5px}.card .nums b{font-size:16px}
+.card .top{padding:12px 12px 8px}.card .tear{margin:0 12px}
+.card .log2{padding:2px 12px 8px;gap:8px}.card .log2 svg{height:44px}.card .log2 .lbl{width:52px;font-size:11px}
+.card .flag{margin:0 12px 10px;font-size:13px}.card .why{margin:0 12px 8px}
 /* toolbar */
 .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--felt);padding:10px 16px 8px;box-shadow:0 8px 14px -10px rgba(0,0,0,.5)}
 .bar-in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:1fr auto;gap:8px}
@@ -276,6 +289,7 @@ input[type=range]{width:100%;accent-color:var(--ok);height:34px}
       <button data-s="ev" aria-pressed="true">Edge</button><button data-s="model">Model %</button><button data-s="odds">Odds</button><button data-s="kick">Kickoff</button>
     </div>
     <button class="dir" id="dir" aria-label="Sort direction">High to low</button>
+    <div class="seg" id="group" role="group" aria-label="Layout" style="flex:0 0 auto"><button data-s="cat" aria-pressed="true">By category</button><button data-s="flat">Flat</button></div>
   </div>
 </div></div>
 <div class="active" id="active"></div>
@@ -346,7 +360,9 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const when = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleString([], {weekday:"short", hour:"numeric", minute:"2-digit"}); };
 const amer = o => { const n = parseInt(o, 10); return isNaN(n) ? 0 : n; };
-const DEF = {q:"", type:"all", mkts:[], sides:[], model:0, ev:3, price:300, books:[], games:[], gap:false, hit:false, sort:"ev", dir:"desc"};
+const DEF = {q:"", type:"all", mkts:[], sides:[], model:0, ev:3, price:300, books:[], games:[], gap:false, hit:false, sort:"ev", dir:"desc", group:"cat"};
+const CATS = [["Passing", /^player_pass/], ["Rushing", /^player_rush_(yds|attempts)$/], ["Receiving", /^player_(reception|receptions|rush_reception)/], ["Touchdowns", /anytime_td/], ["Game lines", /^game_/]];
+const catOf = p => (CATS.find(([, re]) => re.test(p.mkey)) || ["Other"])[0];
 let F = Object.assign({}, DEF);
 try { Object.assign(F, JSON.parse(localStorage.getItem("boardFilters") || "{}")); } catch(e) {}
 const save = () => { try { localStorage.setItem("boardFilters", JSON.stringify(F)); } catch(e) {} };
@@ -394,6 +410,7 @@ function syncSheet(){
   chipRow($("fside"), ["Over", "Under"], F.sides, v => toggle(F.sides, v));
   $("dir").textContent = F.dir === "desc" ? "High to low" : "Low to high";
   seg($("sort"), F.sort, v => F.sort = v);
+  seg($("group"), F.group, v => F.group = v);
   chipRow($("fmkt"), MARKETS, F.mkts, v => toggle(F.mkts, v));
   chipRow($("fbook"), BOOKS, F.books, v => toggle(F.books, v));
   chipRow($("fgame"), GAMES, F.games, v => toggle(F.games, v));
@@ -493,10 +510,18 @@ function render(){
   $("count").textContent = `${rows.length} of ${PLAYS.length} priced bets. Updated __UPDATED__.`;
   $("applyf").textContent = `Show ${rows.length} plays`;
   const brief = AI.brief ? `<section class="brief"><h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3DDC97" stroke-width="2"><path d="M12 3l1.8 4.6L18 9.4l-4.2 1.8L12 16l-1.8-4.8L6 9.4l4.2-1.8z"/></svg>Slate brief</h3><p>${esc(AI.brief)}</p></section>` : "";
-  $("list").innerHTML = brief + (rows.length
-    ? rows.slice(0, 150).map(card).join("") + (rows.length > 150 ? `<div class="empty">Showing the top 150. Tighten the filters to see the rest.</div>` : "")
-    : `<div class="empty"><b>Nothing matches.</b>Loosen a filter or clear the search.</div>`);
+  if (!rows.length){ $("list").innerHTML = brief + `<div class="empty"><b>Nothing matches.</b>Loosen a filter or clear the search.</div>`; return; }
+  if (F.group === "flat"){
+    $("list").innerHTML = brief + `<div class="grid">${rows.slice(0, 200).map(card).join("")}</div>` + (rows.length > 200 ? `<div class="empty">Showing the top 200. Tighten the filters to see the rest.</div>` : "");
+    return;
+  }
+  const groups = new Map(); rows.forEach(p => { const c = catOf(p); if (!groups.has(c)) groups.set(c, []); groups.get(c).push(p); });
+  const order = CATS.map(c => c[0]).concat(["Other"]).filter(c => groups.has(c));
+  $("list").innerHTML = brief + order.map(c => { const g = groups.get(c), lim = EXPANDED.has(c) ? g.length : 8;
+    return `<h2 class="cat">${c}<span><small>${g.length} play${g.length === 1 ? "" : "s"}</small>${g.length > 8 ? ` <button class="more" data-cat="${esc(c)}">${EXPANDED.has(c) ? "Show fewer" : "Show all " + g.length}</button>` : ""}</span></h2><div class="grid">${g.slice(0, lim).map(card).join("")}</div>`; }).join("");
+  [...$("list").querySelectorAll(".more")].forEach(b => b.onclick = () => { EXPANDED.has(b.dataset.cat) ? EXPANDED.delete(b.dataset.cat) : EXPANDED.add(b.dataset.cat); render(); });
 }
+const EXPANDED = new Set();
 $("q").addEventListener("input", e => { F.q = e.target.value; syncSheet(); render(); });
 $("clearq").onclick = () => { F.q = ""; syncSheet(); render(); };
 $("fmodel").oninput = e => { F.model = +e.target.value; syncSheet(); render(); };
@@ -624,7 +649,9 @@ select{border:1px solid var(--mint);background:var(--felt-2);color:#F2F5F8;borde
 .seg{display:flex;border:1px solid var(--mint);background:var(--felt-2);border-radius:12px;padding:3px;gap:2px;flex:1}
 .seg button{flex:1;border:0;background:transparent;color:#93A1B3;min-height:34px;border-radius:9px;font:700 13px var(--body)}
 .seg button[aria-pressed=true]{background:#F2F5F8;color:var(--ink)}
-main{max-width:640px;margin:0 auto;padding:12px 12px 120px}
+main{max-width:1180px;margin:0 auto;padding:12px 12px 120px}
+header,.bar-in{max-width:1180px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;align-items:start}
 .intro{background:var(--felt-2);border:1px solid #2E4056;color:#DCE3EB;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.4;margin-bottom:12px}
 .card{background:var(--paper);border-radius:14px;margin:0 0 12px;box-shadow:0 1px 0 rgba(0,0,0,.25);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
@@ -739,7 +766,7 @@ function card(x){ const p = x.p, s = x.s;
   <div class="stats"><span>Market win %<b>${p.market_p}</b></span><span>Model<b>${p.model}</b></span><span>Streak<b>${Math.round(100 * s.rate)}%</b></span></div>
   <div class="foot"><span class="meta">${p.gap ? "Role changed? Streak is from a different job. Market says " + p.market_p + "%." : ""}</span><button class="addp" data-id="${esc(idOf(p))}" aria-pressed="${PARLAY.has(idOf(p))}">${PARLAY.has(idOf(p)) ? "In slip" : "+ Add"}</button></div></article>`;
 }
-function render(){ saveAll(); const rows = pool(); $("count").textContent = `Week __WEEK__ · ${rows.length} legs match`; $("list").innerHTML = rows.length ? rows.slice(0, 120).map(card).join("") : `<div class="empty"><b>No legs match.</b> Lower the hit rate, the game count, or the favorite threshold.</div>`; renderTray(); }
+function render(){ saveAll(); const rows = pool(); $("count").textContent = `Week __WEEK__ · ${rows.length} legs match`; $("list").innerHTML = rows.length ? `<div class="grid">${rows.slice(0, 160).map(card).join("")}</div>` : `<div class="empty"><b>No legs match.</b> Lower the hit rate, the game count, or the favorite threshold.</div>`; renderTray(); }
 function stats(legs){ const d = legs.reduce((a, p) => a * dec(p.odds), 1), pm = legs.reduce((a, p) => a * p.market_p / 100, 1); return {d, pm, games: new Set(legs.map(gameOf)).size}; }
 function renderTray(){ const legs = PLAYS.filter(p => PARLAY.has(idOf(p))); $("tray").hidden = !legs.length; if (!legs.length){ $("legs").innerHTML = `<p class="note">Empty. Add legs above or auto-build.</p>`; $("psummary").innerHTML = ""; return; }
   const s = stats(legs); $("trayN").textContent = legs.length + (legs.length === 1 ? " leg" : " legs"); $("trayOdds").textContent = toAmer(s.d); $("trayP").textContent = Math.round(100 * s.pm) + "% to hit";
