@@ -122,6 +122,7 @@ header p{margin:4px 0 0;color:#c9d6cd;font-size:14px}
 .pages{display:flex;gap:6px}
 .pages a{color:var(--paper);text-decoration:none;border:1.5px solid var(--mint);border-radius:999px;padding:7px 12px;font-weight:600;font-size:14px;white-space:nowrap}
 .pages a.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+.pages a.refresh{font-size:18px;line-height:1;padding:5px 11px;border-color:var(--gold);color:var(--gold)}
 /* toolbar */
 .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--felt);padding:10px 16px 8px;box-shadow:0 8px 14px -10px rgba(0,0,0,.5)}
 .bar-in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:1fr auto;gap:8px}
@@ -237,7 +238,7 @@ input[type=range]{width:100%;accent-color:var(--ok);height:34px}
 <body>
 <header>
   <div><h1>Week __WEEK__ board</h1><p id="count">Updated __UPDATED__.</p><p id="checks" class="checks"></p></div>
-  <nav class="pages"><a class="on" href="index.html">Board</a><a href="parlay.html">Parlay</a><a href="games.html">Games</a></nav>
+  <nav class="pages"><a class="on" href="index.html">Board</a><a href="parlay.html">Parlay</a><a href="games.html">Games</a><a class="refresh" id="refresh" href="https://github.com/Khoanichi/nfl-props/actions/workflows/props.yml" target="_blank" rel="noopener" title="Re-run the model">&#8635;</a></nav>
 </header>
 <div class="bar"><div class="bar-in">
   <label class="search" id="searchwrap">
@@ -495,7 +496,7 @@ function renderTray(){
   if (!legs.length){ sum.innerHTML = ""; return; }
   const s = parlayStats(legs); const same = s.games < legs.length;
   sum.innerHTML = `<h3>If the book pays the legs multiplied</h3><div class="ps">
-    <div>Combined odds<b>${toAmer(s.d)}</b></div><div>Payout on $10<b>${(10 * s.d).toFixed(0)}</b></div>
+    <div>Combined odds<b>${toAmer(s.d)}</b></div><div>Payout on $10<b>$${(10 * s.d).toFixed(0)}</b></div>
     <div>Our win chance<b>${(100 * s.pb).toFixed(0)}%</b></div><div>Market's win chance<b>${(100 * s.pm).toFixed(0)}%</b></div></div>
     <div class="${s.ev >= 0 ? "good" : "warn"}">Expected value ${s.ev >= 0 ? "+" : ""}${(100 * s.ev).toFixed(1)}%. ${s.ev >= 0 ? "Every leg carries its own small edge, and they multiply." : "The legs' prices eat the edge once multiplied. Swap a leg for one with a better price."}</div>
     ${same ? `<div class="warn">Two legs are from the same game. Their results move together, so the real win chance is not a simple multiply, and many books reprice same-game parlays. Treat the numbers above as optimistic.</div>` : ""}
@@ -526,6 +527,11 @@ if (RESULTS){
   </section>`;
 }
 syncSheet(); render();
+$("refresh").onclick = e => {
+  const ageH = Math.round((Date.now() - new Date(document.lastModified)) / 36e5);
+  const msg = `Refresh re-runs the model on GitHub (tap the green "Run workflow" button on the page that opens; the board updates 2 to 3 minutes later).\n\nCredits: a run only pulls new odds if the last pull is more than 12 hours old. A fresh pull costs about 95 of your 500 monthly credits, so do this once a day at most. Runs inside the 12-hour window reuse the saved odds and cost nothing.\n\nThis board was built ${ageH} hours ago. Continue?`;
+  if (!confirm(msg)) e.preventDefault();
+};
 </script>
 </body>
 </html>
@@ -551,6 +557,7 @@ header p{margin:4px 0 0;color:#c9d6cd;font-size:14px}
 .pages{display:flex;gap:6px}
 .pages a{color:var(--paper);text-decoration:none;border:1.5px solid var(--mint);border-radius:999px;padding:7px 12px;font-weight:600;font-size:14px;white-space:nowrap}
 .pages a.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+.pages a.refresh{font-size:18px;line-height:1;padding:5px 11px;border-color:var(--gold);color:var(--gold)}
 .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--felt);padding:10px 16px 10px;box-shadow:0 8px 14px -10px rgba(0,0,0,.5)}
 .bar-in{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
 .row{display:flex;gap:8px;align-items:center}
@@ -604,7 +611,7 @@ body.popen .scrim{opacity:1;pointer-events:auto}body.popen .sheet{transform:none
 <body>
 <header>
   <div><h1>Parlay builder</h1><p id="count">Week __WEEK__ · heavy favorites on a streak</p></div>
-  <nav class="pages"><a href="index.html">Board</a><a class="on" href="parlay.html">Parlay</a><a href="games.html">Games</a></nav>
+  <nav class="pages"><a href="index.html">Board</a><a class="on" href="parlay.html">Parlay</a><a href="games.html">Games</a><a class="refresh" id="refresh" href="https://github.com/Khoanichi/nfl-props/actions/workflows/props.yml" target="_blank" rel="noopener" title="Re-run the model">&#8635;</a></nav>
 </header>
 <div class="bar"><div class="bar-in">
   <div class="row">
@@ -688,6 +695,7 @@ $("cleartray").onclick = $("clearp").onclick = () => { PARLAY = new Set(); rende
 $("autobuild").onclick = autoBuild;
 $("copyp").onclick = () => { const legs = PLAYS.filter(p => PARLAY.has(idOf(p))); const s = stats(legs); const txt = legs.map(p => `${p.player} ${p.pick} (${p.odds}, ${p.book})`).join("\n") + `\nCombined ${toAmer(s.d)}`; try { navigator.clipboard.writeText(txt); $("copyp").textContent = "Copied"; setTimeout(() => $("copyp").textContent = "Copy slip", 1200); } catch(e) {} };
 document.addEventListener("keydown", e => { if (e.key === "Escape") openP(false); });
+$("refresh").onclick = e => { if (!confirm("Refresh re-runs the model on GitHub (tap the green Run workflow button on the next page). New odds are only pulled if the last pull is over 12 hours old; a fresh pull costs about 95 of 500 monthly credits, so once a day at most. Continue?")) e.preventDefault(); };
 render();
 </script>
 </body>
