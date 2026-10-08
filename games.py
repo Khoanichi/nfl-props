@@ -258,7 +258,6 @@ def split_block(label, left, right, lt, lm, rt, rm):
 
 
 def build():
-    lines = fetch_lines()
     cur = lines_with_openers()
     splits = fetch_splits()
     props = props_by_game()

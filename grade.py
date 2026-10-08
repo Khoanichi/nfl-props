@@ -14,18 +14,43 @@ log = pd.read_csv(C.BET_LOG)
 stats = nfl.load_player_stats(sorted(log.season.unique().tolist())).to_pandas()
 stats = add_derived(stats)
 
+sched = nfl.load_schedules(sorted(log.season.unique().tolist())).to_pandas()
+sched = sched[sched.result.notna()]
+
+
+def game_outcome(r):
+    """Returns (margin for the picked side vs its number) or None if the game isn't final."""
+    away, home = r.player.split(" @ ")
+    g = sched[(sched.season == r.season) & (sched.week == r.week) & (sched.home_team == home) & (sched.away_team == away)]
+    if g.empty:
+        return None
+    g = g.iloc[0]
+    if r.market == "game_total":
+        pts = g.home_score + g.away_score
+        return (pts - r.line) if r.side == "Over" else (r.line - pts)
+    margin = (g.home_score - g.away_score) if r.side == home else (g.away_score - g.home_score)
+    return margin + r.line if r.market == "game_spread" else margin
+
+
 rows = []
 for r in log.itertuples():
-    stat = C.MARKETS[r.market]["stat"]
-    g = stats[(stats.player_id == r.player_id) & (stats.season == r.season) & (stats.week == r.week)]
-    if g.empty:
-        continue  # not played yet, or inactive (book usually voids)
-    x = float(g[stat].fillna(0).iloc[0])
-    if x == r.line:
-        result, units = "P", 0.0
+    if str(r.market).startswith("game_"):
+        d = game_outcome(r)
+        if d is None:
+            continue
+        x = d
+        result, units = ("P", 0.0) if d == 0 else ("W", r.price - 1) if d > 0 else ("L", -1.0)
     else:
-        win = (x > r.line) if r.side == "Over" else (x < r.line)
-        result, units = ("W", r.price - 1) if win else ("L", -1.0)
+        stat = C.MARKETS[r.market]["stat"]
+        g = stats[(stats.player_id == r.player_id) & (stats.season == r.season) & (stats.week == r.week)]
+        if g.empty:
+            continue  # not played yet, or inactive (book usually voids)
+        x = float(g[stat].fillna(0).iloc[0])
+        if x == r.line:
+            result, units = "P", 0.0
+        else:
+            win = (x > r.line) if r.side == "Over" else (x < r.line)
+            result, units = ("W", r.price - 1) if win else ("L", -1.0)
     rows.append(dict(week=r.week, player=r.player, market=r.market, side=r.side, line=r.line,
                      actual=x, result=result, units=units, p=r.p_blend, ev=r.ev))
 

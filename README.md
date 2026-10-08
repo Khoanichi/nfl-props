@@ -56,6 +56,12 @@ player/team search, minimum model win %, minimum edge, sort by edge, model % or 
 include the "check news" plays (model and market disagree by 15%+; usually a role change the stats
 haven't caught up with). Defaults show plays at +3% edge or better.
 
+## Game lines too (game_lines.py)
+Spreads, totals and moneylines are scored on the same board. The model is a results-based Elo
+power rating (home field about 2 points, margin of victory counted, last season carried in at 2/3).
+Totals have no model, so they are judged on price only: best book vs. the no-vig consensus. Costs 3
+API credits per pull. The board's Type filter switches between player props and game lines.
+
 ## Games dashboard (games.html)
 One card per game: consensus spread and total, how far each has moved since we first saw it, and the
 public's share of tickets and money on each side (from Action Network's public feed, unofficial; if it
