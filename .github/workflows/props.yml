@@ -27,6 +27,11 @@ jobs:
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: python find_value.py --week auto --log
+      - name: Score game lines
+        if: github.event.schedule != '0 16 * * 2'
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python game_lines.py --log || true
       - name: Build phone page
         run: python report.py
       - name: Build games dashboard
