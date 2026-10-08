@@ -300,8 +300,8 @@ input[type=range]{width:100%;accent-color:var(--ok);height:34px}
 const PLAYS = __PLAYS__;
 const RESULTS = __RESULTS__;
 const CHECKS = __CHECKS__;
-if (CHECKS){ const n = CHECKS.checks.filter(c => c.ok).length, all = CHECKS.checks.length;
-  $("checks").innerHTML = `Data checks: <b class="${n === all ? "" : "bad"}">${n} of ${all} passed</b> <details><summary>details</summary><ul>${CHECKS.checks.map(c => `<li>${c.ok ? "OK" : "Check"}: ${esc(c.name)}${c.detail ? " (" + esc(c.detail) + ")" : ""}</li>`).join("")}</ul></details>`; }
+if (CHECKS){ const n = CHECKS.checks.filter(c => c.ok).length, all = CHECKS.checks.length; const E = s => String(s).replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+  document.getElementById("checks").innerHTML = `Data checks: <b class="${n === all ? "" : "bad"}">${n} of ${all} passed</b> <details><summary>details</summary><ul>${CHECKS.checks.map(c => `<li>${c.ok ? "OK" : "Check"}: ${E(c.name)}${c.detail ? " (" + E(c.detail) + ")" : ""}</li>`).join("")}</ul></details>`; }
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const when = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleString([], {weekday:"short", hour:"numeric", minute:"2-digit"}); };
