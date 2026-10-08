@@ -1,0 +1,38 @@
+name: Weekly props
+
+on:
+  workflow_dispatch:          # run it by hand from the Actions tab (or the GitHub app on your phone)
+  schedule:                   # UTC. 16:00 UTC = 9 AM Pacific
+    - cron: "0 16 * * 4"      # Thursday morning: props are posted
+    - cron: "0 16 * * 6"      # Saturday morning: injury designations are final
+    - cron: "0 15 * * 0"      # Sunday 8 AM Pacific: last look before early games
+    - cron: "0 16 * * 2"      # Tuesday: grade last week
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Grade last week
+        run: python grade.py || true
+      - name: Find value plays
+        if: github.event.schedule != '0 16 * * 2'
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python find_value.py --week auto --log
+      - name: Build phone page
+        run: python report.py
+      - name: Save results
+        run: |
+          git config user.name "props-bot"
+          git config user.email "props-bot@users.noreply.github.com"
+          git add docs bet_log.csv graded.csv output cache || true
+          git commit -m "props update $(date -u +%F)" || echo "nothing new"
+          git push
